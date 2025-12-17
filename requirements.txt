@@ -1,4 +1,4 @@
 PySide6
 pandas
 matplotlib
-
+numpy<2
