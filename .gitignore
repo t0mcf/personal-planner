@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual env
+.venv/
+
+# Database / exports
+*.db
+*.sqlite
+exports/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
