@@ -1,5 +1,7 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem
+from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem, QSizePolicy
 from PySide6.QtCore import Qt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 class FinanceTab(QWidget): 
     
@@ -22,7 +24,10 @@ class FinanceTab(QWidget):
         table = QWidget()
         table_layout = QVBoxLayout(table)
         
-        bar = QHBoxLayout()
+        bar = QVBoxLayout()
+        
+        filters_row = QHBoxLayout()
+        actions_row = QHBoxLayout()
 
         self.time_period = QComboBox()
         self.time_period.addItems(['This month', 'Last 30 days', 'This year', 'All time'])
@@ -36,30 +41,39 @@ class FinanceTab(QWidget):
         self.csv_import_button = QPushButton('Import csv file')
         self.add_transaction_button = QPushButton('Add transaction')
         
-        bar.addWidget(QLabel('Period:'))
-        bar.addWidget(self.time_period)
-        bar.addWidget(QLabel('Type:'))
-        bar.addWidget(self.transaction_type)
-        bar.addWidget(QLabel('Category:'))
-        bar.addWidget(self.category)
-
-        bar.addStretch()
+        filters_row.addWidget(QLabel('Period:'))
+        filters_row.addWidget(self.time_period)
+        filters_row.addWidget(QLabel('Type:'))
+        filters_row.addWidget(self.transaction_type)
+        filters_row.addWidget(QLabel('Category:'))
+        filters_row.addWidget(self.category)
+        filters_row.addStretch()
         
-        bar.addWidget(self.csv_import_button)
-        bar.addWidget(self.add_transaction_button)
-
+        actions_row.addWidget(self.csv_import_button)
+        actions_row.addWidget(self.add_transaction_button)
+        actions_row.addStretch()
+        
+        bar.addLayout(filters_row)
+        bar.addLayout(actions_row)
+        
         table_layout.addLayout(bar)
 
         self.transaction_table = QTableWidget(0,4)
         self.transaction_table.setHorizontalHeaderLabels(['Date', 'Amount', 'Category', 'Info'])
         self.transaction_table.horizontalHeader().setStretchLastSection(True)
         table_layout.addWidget(self.transaction_table)
-        #visualization part
         
+        #visualization part
         visu = QWidget()
         visu_layout = QVBoxLayout(visu)
         
-        visu_layout.addWidget(QLabel('Charts (todo)'))
+        self.chart_title = QLabel('Expenses by Category')
+        visu_layout.addWidget(self.chart_title)
+
+        self.figure = Figure(figsize=(4, 3))
+        self.canvas = FigureCanvas(self.figure)
+        visu_layout.addWidget(self.canvas)
+        
         visu_layout.addStretch()
         
         #___
