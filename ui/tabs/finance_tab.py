@@ -1,7 +1,12 @@
 from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem, QSizePolicy
 from PySide6.QtCore import Qt
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+
+from datetime import date, timedelta
+
+from db import connect_db, list_transactions
 
 class FinanceTab(QWidget): 
     
@@ -102,15 +107,20 @@ class FinanceTab(QWidget):
         self.refresh()
         
     def get_filters(self):
+        period = self.time_period.currentText()
+        if period != 'Custom':
+            start_date, end_date = period_to_range(period)
+        
         return {
-            'period': self.time_period.currentText(),
+            'period': period, #useless now, right?
             'type': self.transaction_type.currentText(),
             'category': self.category.currentText(),
             #for custom dates, still to be implemented
-            'start_date': None,
-            'end_date': None,
+            'start_date': start_date,
+            'end_date': end_date,
         }
     
+    #deprecated
     def apply_filters(self, rows, filters):
         if filters['type'] == 'Expenses':
             rows = [row for row in rows if row['amount'] < 0]
@@ -122,8 +132,18 @@ class FinanceTab(QWidget):
     
     #changing table display depending on filters
     def refresh(self):
-        filters = self.get_filters()        
-        rows = self.apply_filters(self._test_data, filters)
+        filters = self.get_filters()       
+        db_connection = connect_db()
+            
+        rows = list_transactions(
+            db_connection,
+            start_date=filters['start_date'],
+            end_date=filters['end_date'],
+            tx_type=filters['type'],
+            limit=200
+        )
+        db_connection.close()
+        
         self.fill_table(rows)
     
     #fill table display with certain rows
@@ -135,3 +155,25 @@ class FinanceTab(QWidget):
             self.transaction_table.setItem(row_index, 1, QTableWidgetItem(f"{row['amount']:.2f}"))
             self.transaction_table.setItem(row_index, 2, QTableWidgetItem(row['category']))
             self.transaction_table.setItem(row_index, 3, QTableWidgetItem(row['info']))
+            
+#returns start and end date depending on period (end will always be today)
+def period_to_range(period: str):
+    today = date.today()
+    end_date = today.isoformat()
+    
+    if period == 'This month':
+        start = today.replace(day=1)
+        return start.isoformat(), end_date
+
+    if period == 'Last 30 days':
+        start = today - timedelta(days=30)
+        return start.isoformat(), end_date
+    
+    if period == 'This year':
+        start = date(today.year, 1, 1)
+        return start.isoformat(), end_date
+    
+    if period == 'All time':
+        return None, None
+    
+    return None, None #if not yet implemented, shouldn't happen
