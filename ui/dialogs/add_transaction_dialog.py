@@ -14,9 +14,16 @@ from PySide6.QtCore import QDate, QLocale
 
 #GUI element to collect new transaction data
 #just collects the data, does not interact with the database itself
+#FOR NOW also used for the editing
 class AddTransactionDialog(QDialog):
     
-    def __init__(self, categories: list[str] | None = None, parent=None) -> None:
+    def __init__(
+        self, 
+        categories: list[str] | None = None, 
+        parent=None,
+        initial_data: dict | None = None, #for edit mode
+        title: str = 'Add transaction' #for edit mode
+        ) -> None:
         super().__init__(parent)
         
         self.setWindowTitle("Add transaction")
@@ -72,6 +79,25 @@ class AddTransactionDialog(QDialog):
 
         self.cancel_button.clicked.connect(self.reject)
         self.save_button.clicked.connect(self._save_input)
+        
+        #edit transaction mode:
+        if initial_data:
+            tx_date = initial_data.get('tx_date')
+            if tx_date:
+                d = QDate.fromString(tx_date, 'yyyy-MM-dd')
+                if d.isValid():
+                    self.date_edit.setDate(d)
+            if initial_data.get('amount') is not None:
+                self.amount_sel.setValue(float(initial_data['amount']))
+            cat = initial_data.get['category']
+            if cat: 
+                self.category_input.setCurrentText(str(cat))
+            name = initial_data.get('name')
+            if name:
+                self.name_input.setText(str(name))
+            desc = initial_data.get('description')
+            if desc:
+                self.desc_input.setText(str(desc))
         
     
     # on 'save' button click  

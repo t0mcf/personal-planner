@@ -68,8 +68,8 @@ class FinanceTab(QWidget):
         
         table_layout.addLayout(bar)
 
-        self.transaction_table = QTableWidget(0,4)
-        self.transaction_table.setHorizontalHeaderLabels(['Date', 'Amount', 'Category', 'Info'])
+        self.transaction_table = QTableWidget(0,5)
+        self.transaction_table.setHorizontalHeaderLabels(['Date', 'Amount', 'Category', 'Name', 'Info'])
         self.transaction_table.horizontalHeader().setStretchLastSection(True)
         table_layout.addWidget(self.transaction_table)
         
@@ -158,8 +158,9 @@ class FinanceTab(QWidget):
         for row_index, row in enumerate(rows):
             self.transaction_table.setItem(row_index, 0, QTableWidgetItem(row['date']))
             self.transaction_table.setItem(row_index, 1, QTableWidgetItem(f"{row['amount']:.2f}"))
-            self.transaction_table.setItem(row_index, 2, QTableWidgetItem(row['category']))
-            self.transaction_table.setItem(row_index, 3, QTableWidgetItem(row['info']))
+            self.transaction_table.setItem(row_index, 2, QTableWidgetItem(row['category'])),
+            self.transaction_table.setItem(row_index, 3, QTableWidgetItem(row['name']))
+            self.transaction_table.setItem(row_index, 4, QTableWidgetItem(row['info']))
         
             
     def open_add_dialog(self) -> None:

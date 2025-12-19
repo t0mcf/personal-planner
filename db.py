@@ -76,13 +76,14 @@ def list_transactions( #todo: category
         where.append('amount > 0')
     where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
     
-    query = connection.execute( #info todo 
+    query = connection.execute( #info todo, grade erstmal noch description
         f"""
         SELECT id, 
         tx_date AS date,
         amount, 
         category, 
-        '' AS info 
+        name,
+        description AS info 
         FROM transactions
         {where_sql}
         ORDER BY tx_date DESC, id DESC
