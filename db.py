@@ -153,6 +153,35 @@ def get_transaction_by_id(connection: sqlite3.Connection, tx_id: int) -> dict | 
     return dict(row) if row else None
 
 
+#intended for usage with the csv_parser
+def import_transactions(
+    connection: sqlite3.Connection,
+    transactions: list[dict],
+    ) -> dict[str, int]:
+    
+    stats = {"imported": 0, "duplicates": 0}
+
+    for tx in transactions:
+        inserted_id = insert_transaction(
+            connection=connection,
+            tx_date=tx["tx_date"],
+            amount=tx["amount"],
+            name=tx.get("name"),
+            description=tx.get("description"),
+            category=tx.get("category", "Uncategorized"),
+            source=tx.get("source"),
+            external_id=tx.get("external_id"),
+        )
+
+        #duplicate handling in insert_transaction via INSERT OR IGNORE
+        if inserted_id is None:
+            stats["duplicates"] += 1
+        else:
+            stats["imported"] += 1
+
+    return stats
+
+
 # _____testing______
 
 def insert_test_transaction(connection: sqlite3.Connection) -> None:

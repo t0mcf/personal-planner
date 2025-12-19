@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem, QDialog
+from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem, QDialog, QFileDialog, QMessageBox
 from PySide6.QtCore import Qt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -6,10 +6,12 @@ from matplotlib.figure import Figure
 
 from datetime import date, timedelta
 
-from db import connect_db, list_transactions, insert_transaction, get_categories, get_transaction_by_id, update_transaction
+from db import connect_db, list_transactions, insert_transaction, get_categories, get_transaction_by_id, update_transaction, import_transactions
 
 from ui.dialogs.add_transaction_dialog import AddTransactionDialog
 from ui.constants import DEFAULT_CATEGORIES
+
+from csv_parser import parse_transactions_from_csv
 
 class FinanceTab(QWidget): 
     
@@ -47,6 +49,7 @@ class FinanceTab(QWidget):
         self.category.addItems(['All', 'Uncategorized'])
         
         self.csv_import_button = QPushButton('Import csv file')
+        self.csv_import_button.clicked.connect(self.open_csv_import)
         
         self.add_transaction_button = QPushButton('Add transaction')
         self.add_transaction_button.clicked.connect(self.open_add_dialog)
@@ -183,12 +186,12 @@ class FinanceTab(QWidget):
         
         insert_transaction(
             connection,
-            tx_date=tx_data["tx_date"],
-            amount=tx_data["amount"],
-            category=tx_data["category"],
-            name=tx_data["name"],
-            description=tx_data["description"],
-            source="manual",
+            tx_date=tx_data['tx_date'],
+            amount=tx_data['amount'],
+            category=tx_data['category'],
+            name=tx_data['name'],
+            description=tx_data['description'],
+            source='manual',
             external_id=None,
         )
         
@@ -215,18 +218,18 @@ class FinanceTab(QWidget):
             return
         
         initial_data = {
-            "tx_date": tx["tx_date"],
-            "amount": tx["amount"],
-            "category": tx["category"],
-            "name": tx["name"],
-            "description": tx["description"],
+            'tx_date': tx['tx_date'],
+            'amount': tx['amount'],
+            'category': tx['category'],
+            'name': tx['name'],
+            'description': tx['description'],
         }
 
         dialog = AddTransactionDialog(
             categories=[],         
             parent=self,
             initial_data=initial_data,
-            title="Edit transaction",
+            title='Edit transaction',
         )
 
         if dialog.exec() != QDialog.Accepted:
@@ -239,15 +242,51 @@ class FinanceTab(QWidget):
         update_transaction(
             connection,
             tx_id=int(tx_id),
-            tx_date=edited["tx_date"],
-            amount=edited["amount"],
-            category=edited["category"],
-            name=edited["name"],
-            description=edited["description"],
+            tx_date=edited['tx_date'],
+            amount=edited['amount'],
+            category=edited['category'],
+            name=edited['name'],
+            description=edited['description'],
         )
         connection.close()
 
         self.refresh()
+        
+    
+    def open_csv_import(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            'Select PayPal CSV',
+            '',
+            'CSV Files (*.csv);;All Files (*)',
+        )
+        if not file_path: #if user cancels
+            return
+
+        try:
+            transactions = parse_transactions_from_csv(file_path)
+        except Exception as e:
+            QMessageBox.critical(self, 'CSV Import Failed', f'Could not parse file:\n{e}')
+            return
+
+        if not transactions:
+            QMessageBox.information(self, 'CSV Import', 'No importable transactions found.')
+            return
+
+        connection = connect_db()
+        try:
+            stats = import_transactions(connection, transactions)
+        finally:
+            connection.close()
+
+        QMessageBox.information(
+            self,
+            'CSV Import Complete',
+            f"Imported: {stats['imported']}\nDuplicates skipped: {stats['duplicates']}",
+        )
+
+        self.refresh()
+
                  
 #returns start and end date depending on period (end will always be today)
 def period_to_range(period: str):
