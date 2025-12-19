@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem, QSizePolicy
+from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem, QDialog
 from PySide6.QtCore import Qt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -6,7 +6,10 @@ from matplotlib.figure import Figure
 
 from datetime import date, timedelta
 
-from db import connect_db, list_transactions
+from db import connect_db, list_transactions, insert_transaction, get_categories
+
+from ui.dialogs.add_transaction_dialog import AddTransactionDialog
+from ui.constants import DEFAULT_CATEGORIES
 
 class FinanceTab(QWidget): 
     
@@ -44,7 +47,9 @@ class FinanceTab(QWidget):
         self.category.addItems(['All', 'Uncategorized'])
         
         self.csv_import_button = QPushButton('Import csv file')
+        
         self.add_transaction_button = QPushButton('Add transaction')
+        self.add_transaction_button.clicked.connect(self.open_add_dialog)
         
         filters_row.addWidget(QLabel('Period:'))
         filters_row.addWidget(self.time_period)
@@ -155,6 +160,37 @@ class FinanceTab(QWidget):
             self.transaction_table.setItem(row_index, 1, QTableWidgetItem(f"{row['amount']:.2f}"))
             self.transaction_table.setItem(row_index, 2, QTableWidgetItem(row['category']))
             self.transaction_table.setItem(row_index, 3, QTableWidgetItem(row['info']))
+        
+            
+    def open_add_dialog(self) -> None:
+        connection = connect_db()
+        
+        categories_db = get_categories(connection)
+        categories = []
+        for category in DEFAULT_CATEGORIES + categories_db: #no duplicates
+            if category not in categories:
+                categories.append(category)
+    
+        dialog = AddTransactionDialog(categories = categories, parent=self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        
+        tx_data = dialog.get_data()
+        
+        insert_transaction(
+            connection,
+            tx_date=tx_data["tx_date"],
+            amount=tx_data["amount"],
+            category=tx_data["category"],
+            name=tx_data["name"],
+            description=tx_data["description"],
+            source="manual",
+            external_id=None,
+        )
+        
+        connection.close()
+        
+        self.refresh()
             
 #returns start and end date depending on period (end will always be today)
 def period_to_range(period: str):
