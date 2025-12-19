@@ -6,7 +6,7 @@ from matplotlib.figure import Figure
 
 from datetime import date, timedelta
 
-from db import connect_db, list_transactions, insert_transaction, get_categories
+from db import connect_db, list_transactions, insert_transaction, get_categories, get_transaction_by_id, update_transaction
 
 from ui.dialogs.add_transaction_dialog import AddTransactionDialog
 from ui.constants import DEFAULT_CATEGORIES
@@ -71,6 +71,7 @@ class FinanceTab(QWidget):
         self.transaction_table = QTableWidget(0,5)
         self.transaction_table.setHorizontalHeaderLabels(['Date', 'Amount', 'Category', 'Name', 'Info'])
         self.transaction_table.horizontalHeader().setStretchLastSection(True)
+        self.transaction_table.cellDoubleClicked.connect(self.open_edit_dialog)
         table_layout.addWidget(self.transaction_table)
         
         #visualization part
@@ -156,7 +157,9 @@ class FinanceTab(QWidget):
         self.transaction_table.setRowCount(len(rows))
         
         for row_index, row in enumerate(rows):
-            self.transaction_table.setItem(row_index, 0, QTableWidgetItem(row['date']))
+            date_item = QTableWidgetItem(row['date']) #to add id to date item (date bc it always exists) for identification
+            date_item.setData(Qt.UserRole, row['id'])
+            self.transaction_table.setItem(row_index, 0, date_item)
             self.transaction_table.setItem(row_index, 1, QTableWidgetItem(f"{row['amount']:.2f}"))
             self.transaction_table.setItem(row_index, 2, QTableWidgetItem(row['category'])),
             self.transaction_table.setItem(row_index, 3, QTableWidgetItem(row['name']))
@@ -192,7 +195,60 @@ class FinanceTab(QWidget):
         connection.close()
         
         self.refresh()
-            
+        
+        
+    def open_edit_dialog(self, row: int, col: int) -> None:
+        item = self.transaction_table.item(row, 0)
+        if not item:
+            return
+        
+        tx_id = item.data(Qt.UserRole)
+        if not tx_id: 
+            return
+        
+        connection = connect_db()
+        tx = get_transaction_by_id(connection, int(tx_id))
+        connection.close()
+        
+        if not tx:
+            print(f'Could not load id {tx_id}') #for debugging, remove later
+            return
+        
+        initial_data = {
+            "tx_date": tx["tx_date"],
+            "amount": tx["amount"],
+            "category": tx["category"],
+            "name": tx["name"],
+            "description": tx["description"],
+        }
+
+        dialog = AddTransactionDialog(
+            categories=[],         
+            parent=self,
+            initial_data=initial_data,
+            title="Edit transaction",
+        )
+
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        edited = dialog.get_data()
+        
+        connection = connect_db()
+        
+        update_transaction(
+            connection,
+            tx_id=int(tx_id),
+            tx_date=edited["tx_date"],
+            amount=edited["amount"],
+            category=edited["category"],
+            name=edited["name"],
+            description=edited["description"],
+        )
+        connection.close()
+
+        self.refresh()
+                 
 #returns start and end date depending on period (end will always be today)
 def period_to_range(period: str):
     today = date.today()

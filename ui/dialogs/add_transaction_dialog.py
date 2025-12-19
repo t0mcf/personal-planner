@@ -26,7 +26,7 @@ class AddTransactionDialog(QDialog):
         ) -> None:
         super().__init__(parent)
         
-        self.setWindowTitle("Add transaction")
+        self.setWindowTitle(title)
         self.setModal(True) #no concurrent input outside of dialog possible
         
         categories = categories or []
@@ -88,8 +88,8 @@ class AddTransactionDialog(QDialog):
                 if d.isValid():
                     self.date_edit.setDate(d)
             if initial_data.get('amount') is not None:
-                self.amount_sel.setValue(float(initial_data['amount']))
-            cat = initial_data.get['category']
+                self.amount_sel.setValue(float(initial_data.get('amount')))
+            cat = initial_data.get('category')
             if cat: 
                 self.category_input.setCurrentText(str(cat))
             name = initial_data.get('name')

@@ -92,13 +92,35 @@ def list_transactions( #todo: category
     )
     return [dict(row) for row in query.fetchall()]
     
+    
+def update_transaction(
+    connection: sqlite3.Connection,
+    tx_id: int,
+    tx_date: str,
+    amount: float,
+    category: str,
+    name: str | None = None,
+    description: str | None = None,
+    ) -> None:
+        connection.execute(
+            """
+            UPDATE transactions
+            SET tx_date = ?, amount = ?, category = ?, name = ?, description = ?
+            WHERE id = ?
+            """,
+            (tx_date, amount, category, name, description, tx_id),
+        )
+        connection.commit()
 
+
+#deprecated
 def update_transaction_category(connection: sqlite3.Connection, tx_id: int, category: str) -> None:
     connection.execute(
         'UPDATE transactions SET category = ? WHERE id = ?',
         (category, tx_id)
     )
     connection.commit()
+    
     
 def get_categories(connection: sqlite3.Connection) -> list[str]:
     query = connection.execute(
@@ -110,11 +132,25 @@ def get_categories(connection: sqlite3.Connection) -> list[str]:
     )
     return [row['category'] for row in query.fetchall()]
 
+
 def get_all_transactions(connection):
     query = connection.execute(
         "SELECT id, tx_date, amount FROM transactions"
     )
     return query.fetchall()
+
+
+def get_transaction_by_id(connection: sqlite3.Connection, tx_id: int) -> dict | None:
+    query = connection.execute(
+        """
+        SELECT id, tx_date, amount, category, name, description
+        FROM transactions
+        WHERE id = ? 
+        """,
+        (tx_id,)
+    )
+    row = query.fetchone()
+    return dict(row) if row else None
 
 
 # _____testing______
