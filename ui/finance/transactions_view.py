@@ -13,7 +13,7 @@ from ui.constants import DEFAULT_CATEGORIES
 
 from csv_parser import parse_transactions_from_csv
 
-class FinanceTab(QWidget): 
+class FinanceTransactionsView(QWidget): 
     
     def __init__(self, parent=None) -> None:
         super().__init__(parent)

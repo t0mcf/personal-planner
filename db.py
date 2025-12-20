@@ -182,6 +182,50 @@ def import_transactions(
     return stats
 
 
+def get_timeseries_data(
+    connection:sqlite3.Connection,
+    start_date: str,
+    end_date: str,
+    aggregation: str,
+    )-> list[dict]:
+    
+    #for x axis labels
+    if aggregation == "day":
+        label = "tx_date"
+    elif aggregation == "week":
+        label = (
+            "date(tx_date, '-' || ((CAST(strftime('%w', tx_date) AS integer) + 6) % 7) || ' days')"
+            )
+    elif aggregation == "month":
+        label = "date(tx_date, 'start of month')"
+    else:
+        raise ValueError(f'Invalid aggregation: {aggregation}') #maybe support more later
+
+
+    cursor = connection.cursor()
+    #query to get aggregated data grouped by aggregation criteria
+    cursor.execute(
+        f"""
+        SELECT {label} as label,
+        SUM (CASE WHEN amount > 0 THEN amount ELSE 0 END) as income,
+        SUM (CASE WHEN amount < 0 THEN amount ELSE 0 END) as expenses
+        FROM transactions
+        WHERE tx_date BETWEEN ? AND ? 
+        GROUP BY label
+        ORDER BY label ASC
+        """,
+        (start_date, end_date),
+    )
+    rows = cursor.fetchall()
+    result: list[dict] = []
+    for label, income, expenses in rows:
+        result.append({
+            'label': label,
+            'income': float(income or 0), #0 if Nan or similar
+            'expenses': float(expenses or 0)
+        })
+    return result
+
 # _____testing______
 
 def insert_test_transaction(connection: sqlite3.Connection) -> None:

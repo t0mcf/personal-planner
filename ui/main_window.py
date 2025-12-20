@@ -1,14 +1,14 @@
 from typing import Optional
 import PySide6.QtCore
 from PySide6.QtWidgets import QMainWindow, QTabWidget
-from ui.tabs.finance_tab import FinanceTab
+from ui.finance.finance_tab import FinanceTab
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle('personal planner')
-        self.resize(1100, 700)
+        self.resize(1200, 800)
         self._init_ui()
         
     def _init_ui(self):
