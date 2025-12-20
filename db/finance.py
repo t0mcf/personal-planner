@@ -1,20 +1,10 @@
 import sqlite3
-from pathlib import Path
-
-DB_PATH = Path('data') / 'finance.db'
-
-def connect_db() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(exist_ok=True)
-    connection = sqlite3.connect(DB_PATH)
-    connection.row_factory = sqlite3.Row
-    return connection
-
 
 #scheme explanation:
 #name is for merchants etc
 #source is whether manual or paypal etc (subject to change)
 #external_id to check for duplicate imports (subject to change)
-def init_db(connection: sqlite3.Connection) -> None:
+def init_finance_tables(connection):
     connection.execute("""
                        CREATE TABLE IF NOT EXISTS transactions(
                            id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,8 +20,7 @@ def init_db(connection: sqlite3.Connection) -> None:
                     """)
     connection.execute('CREATE INDEX IF NOT EXISTS index_tx_date ON transactions(tx_date)')
     connection.commit()
-    
-    
+
 def insert_transaction(
     connection: sqlite3.Connection, 
     tx_date: str, 

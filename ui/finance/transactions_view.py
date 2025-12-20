@@ -6,7 +6,8 @@ from matplotlib.figure import Figure
 
 from datetime import date, timedelta
 
-from db import connect_db, list_transactions, insert_transaction, get_categories, get_transaction_by_id, update_transaction, import_transactions
+from db.core import connect_db
+from db.finance import list_transactions, insert_transaction, get_categories, get_transaction_by_id, update_transaction, import_transactions
 
 from ui.dialogs.add_transaction_dialog import AddTransactionDialog
 from ui.constants import DEFAULT_CATEGORIES

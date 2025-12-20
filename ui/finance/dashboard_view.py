@@ -10,7 +10,8 @@ from PySide6.QtCharts import(
 from PySide6.QtGui import QPainter, QColor, QCursor
 from datetime import date, timedelta, datetime
 
-from db import connect_db, get_timeseries_data, list_transactions
+from db.core import connect_db
+from db.finance import get_timeseries_data, list_transactions
 
 
 class FinanceDashboardView(QWidget):
