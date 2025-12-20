@@ -50,9 +50,9 @@ class FinanceDashboardView(QWidget):
         summary_row = QHBoxLayout()
         summary_row.setSpacing(12)
 
-        self.summary_income = self.make_summary_card('Income', '—')
-        self.summary_expense = self.make_summary_card('Expenses', '—')
-        self.summary_net = self.make_summary_card('Net', '—')
+        self.summary_income, self.summary_income_value = self.make_summary_card('Income', '—')
+        self.summary_expense, self.summary_expense_value = self.make_summary_card('Expenses', '—')
+        self.summary_net, self.summary_net_value = self.make_summary_card('Net', '—')
 
         summary_row.addWidget(self.summary_income)
         summary_row.addWidget(self.summary_expense)
@@ -152,7 +152,7 @@ class FinanceDashboardView(QWidget):
         layout.addWidget(label_title)
         layout.addWidget(label_value)
         layout.addStretch(1)
-        return frame
+        return frame, label_value
 
 
     def make_panel(self, title: str) -> QFrame:
@@ -217,6 +217,9 @@ class FinanceDashboardView(QWidget):
         tooltips = tooltips_for_agg(timeframe, keys, aggregation)
         
         income, expenses, net = merge_timeseries(keys, timeseries_data)
+        total_income = sum(income)
+        total_expenses = sum(expenses)
+        self.update_summary(total_income, total_expenses)
 
         connection.close()
         
@@ -320,6 +323,16 @@ class FinanceDashboardView(QWidget):
         expense_set.hovered.connect(hovered)
 
         return chart
+    
+    
+    #for summary cards at top
+    def update_summary(self, total_income: float, total_expenses: float) -> None:
+        net = total_expenses + total_income
+        
+        self.summary_income_value.setText(f'{total_income:,.2f}')
+        self.summary_expense_value.setText(f'{total_expenses:,.2f}')
+        self.summary_net_value.setText(f'{net:,.2f}')
+
     
 
 
@@ -468,3 +481,6 @@ def make_labels_unique(labels: list[str]) -> list[str]:
         seen[lab_str] = count + 1
 
     return out
+
+
+
