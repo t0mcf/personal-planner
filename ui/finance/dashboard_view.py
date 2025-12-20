@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QToolButton, QButtonGroup,
-    QFrame, QListWidget, QSizePolicy, QToolTip
+    QFrame, QListWidget, QSizePolicy, QToolTip, QTableWidget, QTableWidgetItem
 )
 from PySide6.QtCharts import(
     QChart, QChartView, QBarSet, QBarCategoryAxis, QValueAxis, QStackedBarSeries
@@ -10,7 +10,7 @@ from PySide6.QtCharts import(
 from PySide6.QtGui import QPainter, QColor, QCursor
 from datetime import date, timedelta, datetime
 
-from db import connect_db, get_timeseries_data
+from db import connect_db, get_timeseries_data, list_transactions
 
 
 class FinanceDashboardView(QWidget):
@@ -75,11 +75,11 @@ class FinanceDashboardView(QWidget):
         latest_layout = latest_frame.layout()
 
         latest_layout.addWidget(QLabel('Latest Income'))
-        self.latest_income = QListWidget()
+        self.latest_income = self.make_latest_table()
         latest_layout.addWidget(self.latest_income)
 
         latest_layout.addWidget(QLabel('Latest Expenses'))
-        self.latest_expense = QListWidget()
+        self.latest_expense = self.make_latest_table()
         latest_layout.addWidget(self.latest_expense)
 
         bottom.addWidget(self.pie_frame, stretch=2)
@@ -89,11 +89,6 @@ class FinanceDashboardView(QWidget):
 
         #placeholder
         self.range_group.buttonClicked.connect(self.timeframe_clicked)
-
-        # TEST placehodler
-        self.latest_income.addItems(['+50.00  Salary', '+12.00  Refund'])
-        self.latest_expense.addItems(['-5.00   Groceries', '-9.99  Subscription'])
-
 
         #styling, subject to change
         self.setStyleSheet(
@@ -126,7 +121,7 @@ class FinanceDashboardView(QWidget):
         self.timeseries_frame.layout().addWidget(self.cashflow_chart_view, stretch=1)
         
         self.refresh('W') #cause we use W as default, better to make more robust with default var. later
-
+        self.refresh_latest_transactions()
 
     #_________ UI creation functions _____________
     def make_range_button(self, text: str, checked: bool = False) -> QToolButton:
@@ -167,6 +162,17 @@ class FinanceDashboardView(QWidget):
         layout.addWidget(label)
 
         return frame
+    
+    
+    def make_latest_table(self) -> QTableWidget:
+        table = QTableWidget(0, 5)
+        table.setHorizontalHeaderLabels(['Date', 'Amount', 'Name', 'Category', 'Info'])
+        table.horizontalHeader().setStretchLastSection(True)
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setSelectionMode(QTableWidget.NoSelection)
+        table.verticalHeader().setVisible(False)
+        return table
+
 
 
     #______ logic / charts ______
@@ -332,8 +338,26 @@ class FinanceDashboardView(QWidget):
         self.summary_income_value.setText(f'{total_income:,.2f}')
         self.summary_expense_value.setText(f'{total_expenses:,.2f}')
         self.summary_net_value.setText(f'{net:,.2f}')
+        
+    #for latest transaction field
+    def refresh_latest_transactions(self, limit: int=6) -> None:
+        connection = connect_db()
+        income_rows = list_transactions(connection, tx_type='Income', limit=limit)
+        expense_rows = list_transactions(connection, tx_type = 'Expenses', limit=limit)
+        connection.close()
+        
+        def fill_latest_table(table: QTableWidget, rows: list[dict]) -> None:
+            table.setRowCount(len(rows))
+            for i, row in enumerate(rows):
+                table.setItem(i, 0, QTableWidgetItem(row['date']))
+                table.setItem(i, 1, QTableWidgetItem(f"{row['amount']:.2f}"))
+                table.setItem(i, 2, QTableWidgetItem(row['name'] or '-')) #'-' in case of None
+                table.setItem(i, 3, QTableWidgetItem(row['category'] or '-')) 
+                table.setItem(i, 4, QTableWidgetItem(row['info'] or '-')) 
 
-    
+                
+        fill_latest_table(self.latest_income, income_rows)
+        fill_latest_table(self.latest_expense, expense_rows)
 
 
 #the following functions help create better labels (was super inconvenient at initial attempt)
@@ -456,11 +480,6 @@ def merge_timeseries(keys: list[str], rows: list[dict]) -> tuple[list[float], li
 
     return income, expenses, net
 
-
-
-
-    
-    
 def make_labels_unique(labels: list[str]) -> list[str]:
    
     seen: dict[str, int] = {}
