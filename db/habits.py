@@ -9,6 +9,7 @@ def init_habit_tables(connection):
                        CREATE TABLE IF NOT EXISTS habits(
                            id INTEGER PRIMARY KEY AUTOINCREMENT,
                            title TEXT NOT NULL,
+                           emoji TEXT, 
                            frequency TEXT NOT NULL,
                            weekly_target INTEGER,
                            active INTEGER NOT NULL DEFAULT 1,
@@ -32,7 +33,7 @@ def list_active_habits(connection) -> list[dict]:
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT id, title, frequency, weekly_target, start_date
+        SELECT id, title, emoji, frequency, weekly_target, start_date
         FROM habits
         WHERE active = 1
         ORDER BY id
@@ -46,9 +47,10 @@ def list_active_habits(connection) -> list[dict]:
         habits.append({
             'id': row[0],
             'title': row[1],
-            'frequency': row[2],
-            'weekly_target': row[3],
-            'start_date': row[4],
+            'emoji': row[2],
+            'frequency': row[3],
+            'weekly_target': row[4],
+            'start_date': row[5],
         })
 
     return habits
@@ -112,6 +114,7 @@ def is_daily_done(connection, habit_id: int, day: str) -> bool:
 
 
 #important for streaks to compare whether weekly progress >= goal and for daily display
+#deprecated progrably
 def get_weekly_progress(connection, habit_id: int, day: str) -> tuple[int, int]:
     day_date = dt_date.fromisoformat(day)
 
@@ -189,6 +192,7 @@ def decrement_habit_today(connection, habit_id: int, day: str):
 
 
 #wrapper, maybe useful, might remove if not used later on
+#deprecated prolly
 def is_weekly_done(connection, habit_id: int, day: str) -> bool:
     done, target = get_weekly_progress(connection, habit_id, day)
     if not target:
@@ -236,5 +240,56 @@ def get_daily_streak(connection, habit_id: int, as_of_day: str) -> int:
 
         streak += 1
         current -= timedelta(days=1)
+
+    return streak
+
+
+def get_weekly_streak(connection, habit_id: int, as_of_day: str) -> int:
+    cursor = connection.cursor()
+
+    cursor.execute(
+        '''
+        SELECT weekly_target, start_date
+        FROM habits
+        WHERE id = ?
+        ''',
+        (habit_id,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return 0
+
+    target = int(row[0] or 0)
+    start_date = row[1]
+    if target <= 0:
+        return 0
+
+    current = dt_date.fromisoformat(as_of_day)
+    streak = 0
+
+    while True:
+        week_start = current - timedelta(days=current.weekday())  # monday
+        week_end = week_start + timedelta(days=6)
+
+        if start_date and week_end.isoformat() < start_date:
+            break
+
+        cursor.execute(
+            '''
+            SELECT SUM(count)
+            FROM habit_log
+            WHERE habit_id = ?
+              AND date >= ?
+              AND date <= ?
+            ''',
+            (habit_id, week_start.isoformat(), week_end.isoformat()),
+        )
+        done = int(cursor.fetchone()[0] or 0)
+
+        if done < target:
+            break
+
+        streak += 1
+        current = week_start - timedelta(days=1)  # go to previous week
 
     return streak
