@@ -52,6 +52,27 @@ class DayView(QWidget):
         top_bar = QHBoxLayout()
         main_layout.addLayout(top_bar)
         
+        #summary cards on top
+        
+        summary_row = QHBoxLayout()
+        summary_row.setSpacing(12)
+        main_layout.addLayout(summary_row)
+
+        self.summary_todos_card, self.summary_todos_value = self.make_summary_card('Todos', '-')
+        self.summary_habits_card, self.summary_habits_value = self.make_summary_card('Habits', '-')
+        self.summary_streaks_card, self.summary_streaks_value = self.make_summary_card('Top Streaks', '-')
+        self.summary_journal_card, self.summary_journal_value = self.make_summary_card('Journal', '-')
+
+        summary_row.addWidget(self.summary_todos_card)
+        summary_row.addWidget(self.summary_habits_card)
+        summary_row.addWidget(self.summary_streaks_card)
+        summary_row.addWidget(self.summary_journal_card)
+        
+        self.summary_todos_card.setMinimumWidth(140)
+        self.summary_habits_card.setMinimumWidth(140)
+        self.summary_streaks_card.setMinimumWidth(140)
+        self.summary_journal_card.setMinimumWidth(140)
+
         prev_button = QToolButton()
         prev_button.setText('◀')
         prev_button.clicked.connect(self.prev_day)
@@ -135,6 +156,7 @@ class DayView(QWidget):
         self.load_todos()
         self.load_habits()
         self.load_journal()
+        self.update_summary()
         
     #load todos just for this day
     #idea: if todos without date, maybe also display them every day or add an option to do so
@@ -245,6 +267,8 @@ class DayView(QWidget):
         connection = connect_db()
         save_journal_entry(connection, self.day, text)
         connection.close()
+        
+        self.summary_journal_value.setText('✓' if text.strip() else '-')
 
 
     #___day switching logic___
@@ -327,7 +351,8 @@ class DayView(QWidget):
         set_daily_done(connection, int(habit_id), self.day, checked) #edit db
         connection.close()
         
-        self.load_habits()
+        self.refresh()
+        
 
     
     def make_weekly_habit_row(self, habit_id: int, title: str, emoji: str | None, done: int, target: int, streak: int) -> QWidget:
@@ -386,7 +411,7 @@ class DayView(QWidget):
         increment_habit_today(connection, int(habit_id), self.day)
         connection.close()
 
-        self.load_habits()
+        self.refresh()
 
 
                 
@@ -433,3 +458,100 @@ class DayView(QWidget):
             empty = QLabel('No weekly habits yet')
             empty.setStyleSheet('color: #777;')
             self.weekly_habits_layout.addWidget(empty)
+            
+    #for top row, similar design as in the finance dashboard view
+    def make_summary_card(self, title: str, value: str) -> tuple[QFrame, QLabel]:
+        frame = QFrame()
+        frame.setStyleSheet(
+            '''
+            QFrame {
+                background: #ffffff;
+                border: 1px solid #d9d9d9;
+                border-radius: 10px;
+            }
+            QLabel {
+                border: none;
+                background: transparent;
+            }
+            '''
+        )
+
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(2)
+
+        label_title = QLabel(title)
+        label_title.setStyleSheet('color: #666; border: none; background: transparent;')
+
+        label_value = QLabel(value)
+        label_value.setStyleSheet('font-size: 20px; font-weight: 700; border: none; background: transparent;')
+
+        layout.addWidget(label_title)
+        layout.addWidget(label_value)
+        layout.addStretch(1)
+
+        return frame, label_value
+
+    
+    def update_summary(self):
+        connection = connect_db()
+
+        todos = list_todos_for_day(connection, self.day)
+        total_todos = len(todos)
+        done_todos = sum(1 for t in todos if t['completed'])
+
+        self.summary_todos_value.setText(f'📝 {done_todos}/{total_todos}' if total_todos else '📝 -')
+
+        habits = list_active_habits(connection)
+        daily = [h for h in habits if h['frequency'] == 'daily']
+        weekly = [h for h in habits if h['frequency'] == 'weekly']
+
+        daily_done = 0
+        for h in daily:
+            if is_daily_done(connection, h['id'], self.day):
+                daily_done += 1
+
+        weekly_done = 0
+        for h in weekly:
+            done, target = get_weekly_progress(connection, h['id'], self.day)
+            if target > 0 and done >= target:
+                weekly_done += 1
+
+        daily_total = len(daily)
+        weekly_total = len(weekly)
+
+        if daily_total or weekly_total:
+            parts = []
+            if daily_total:
+                parts.append(f'D {daily_done}/{daily_total}')
+            if weekly_total:
+                parts.append(f'W {weekly_done}/{weekly_total}')
+            self.summary_habits_value.setText('🔁 ' + '   '.join(parts))
+        else:
+            self.summary_habits_value.setText('-')
+
+
+        best_daily = 0
+        for h in daily:
+            s = get_daily_streak(connection, h['id'], self.day)
+            if s > best_daily:
+                best_daily = s
+
+        best_weekly = 0
+        for h in weekly:
+            s = get_weekly_streak(connection, h['id'], self.day)
+            if s > best_weekly:
+                best_weekly = s
+
+        if best_daily or best_weekly:
+            self.summary_streaks_value.setText(f'🔥 D{best_daily}  W{best_weekly}')
+        else:
+            self.summary_streaks_value.setText('-')
+
+        #for journaling just do a tick if there is an entry, maybe useless, might remove
+        text = get_journal_entry(connection, self.day) or ''
+        has_journal = bool(text.strip())
+        self.summary_journal_value.setText('📓 ✓' if has_journal else '📓 -')
+
+        connection.close()
+
