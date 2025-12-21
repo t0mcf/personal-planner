@@ -11,7 +11,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QCheckBox,
     QInputDialog,
-    QToolButton
+    QToolButton,
+    QDialog
 )
 from PySide6.QtCore import Qt
 
@@ -25,6 +26,8 @@ from db.journal import (
     get_journal_entry,
     save_journal_entry,
 )
+
+from ui.todos.calendar_widget import CalendarWidget
 
 
 class DayView(QWidget):
@@ -65,6 +68,12 @@ class DayView(QWidget):
         add_button = QPushButton('+ Add Todo')
         add_button.clicked.connect(self.add_todo)
         main_layout.addWidget(add_button)
+        
+        calendar_button = QToolButton()
+        calendar_button.setText('📅')
+        calendar_button.clicked.connect(self.open_calendar)
+        top_bar.addWidget(calendar_button)
+
 
         journal_label = QLabel('Journal')
         journal_label.setStyleSheet('font-weight: 600; margin-top: 8px;')
@@ -186,3 +195,25 @@ class DayView(QWidget):
     def next_day(self):
         date = dt_date.fromisoformat(self.day) + timedelta(days=1)
         self.set_day(date.isoformat())
+
+
+    def open_calendar(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Calendar')
+        dialog.resize(900, 650)
+
+        layout = QVBoxLayout(dialog)
+
+        calendar_widget = CalendarWidget(self.day)
+        layout.addWidget(calendar_widget)
+
+        chosen = {'day': None}
+
+        def on_day(day: str):
+            chosen['day'] = day
+            dialog.accept()
+
+        calendar_widget.day_selected.connect(on_day)
+
+        if dialog.exec() and chosen['day']:
+            self.set_day(chosen['day'])

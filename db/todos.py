@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import date as dt_date
 
 
 def init_todo_tables(connection: sqlite3.Connection) -> None:
@@ -91,3 +92,41 @@ def delete_todo(
         (todo_id,),
     )
     connection.commit()
+    
+
+#intended for usage with the calendar view to show stats 
+def get_todo_stats_for_month(connection, year: int, month: int) -> dict[str, tuple[int, int]]:
+    start_date = dt_date(year, month, 1)
+
+    if month == 12:
+        end_date = dt_date(year + 1, 1, 1)
+    else:
+        end_date = dt_date(year, month + 1, 1)
+
+    start_iso = start_date.isoformat()
+    end_iso = end_date.isoformat()
+
+    cursor = connection.cursor()
+    cursor.execute(
+        '''
+        SELECT date,
+               SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS done,
+               COUNT(*) AS total
+        FROM todos
+        WHERE date IS NOT NULL
+          AND date >= ?
+          AND date < ?
+        GROUP BY date
+        ''',
+        (start_iso, end_iso),
+    )
+
+    stats: dict[str, tuple[int, int]] = {}
+    for row in cursor.fetchall():
+        day = row[0]
+        done = int(row[1] or 0)
+        total = int(row[2] or 0)
+        stats[day] = (done, total)
+
+    return stats
+
