@@ -3,6 +3,7 @@ from pathlib import Path
 from db.finance import init_finance_tables
 from db.todos import init_todo_tables
 from db.journal import init_journal_tables
+from db.habits import init_habit_tables
 
 DB_PATH = Path('data') / 'planner.db'
 
@@ -17,3 +18,4 @@ def init_db(connection: sqlite3.Connection) -> None:
     init_finance_tables(connection)
     init_todo_tables(connection)
     init_journal_tables(connection)
+    init_habit_tables(connection)
