@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtCore import Qt, Signal
 
+from PySide6.QtGui import QShowEvent
+
 from db.core import connect_db
 from db.todos import (
     list_todos_for_day,
@@ -579,3 +581,6 @@ class DayView(QWidget):
 
         connection.close()
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh()

@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QPushButton, QLabel, QVBoxLayout, QComboBox, QHBoxLayout, QTableWidget, QSplitter, QTableWidgetItem, QDialog, QFileDialog, QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QShowEvent
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -287,6 +288,12 @@ class FinanceTransactionsView(QWidget):
         )
 
         self.refresh()
+    
+    
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh()
+
 
                  
 #returns start and end date depending on period (end will always be today)

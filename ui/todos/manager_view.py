@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
 )
+from PySide6.QtGui import QShowEvent
 
 from db.core import connect_db
 from db.habits import (
@@ -552,4 +553,8 @@ class TodosManagerWidget(QWidget):
         set_todo_completed(connection, int(todo_id), checked)
         connection.close()
 
+        self.refresh()
+        
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
         self.refresh()

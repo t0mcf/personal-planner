@@ -456,4 +456,7 @@ class HomeView(QWidget):
         #weather update
         self.weather_widget.refresh()
     
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh()
     

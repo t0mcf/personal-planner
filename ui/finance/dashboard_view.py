@@ -7,7 +7,7 @@ from PySide6.QtCharts import(
     QChart, QChartView, QBarSet, QBarCategoryAxis, QValueAxis, QStackedBarSeries
 )
 
-from PySide6.QtGui import QPainter, QColor, QCursor
+from PySide6.QtGui import QPainter, QColor, QCursor, QShowEvent
 from datetime import date, timedelta, datetime
 
 from db.core import connect_db
@@ -332,6 +332,12 @@ class FinanceDashboardView(QWidget):
         return chart
     
     
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh('W') #change to usage of default variable
+
+    
+    
     #for summary cards at top
     def update_summary(self, total_income: float, total_expenses: float) -> None:
         net = total_expenses + total_income
@@ -501,6 +507,3 @@ def make_labels_unique(labels: list[str]) -> list[str]:
         seen[lab_str] = count + 1
 
     return out
-
-
-
