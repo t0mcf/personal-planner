@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
 
 from db.core import connect_db
 from db.todos import get_todo_stats_for_month
-from db.journal import get_journal_days_for_month
+from db.habits import get_daily_habit_stats_for_month
+from db.journal import get_journal_status_for_month
 
 
 class CalendarWidget(QWidget):
@@ -95,15 +96,17 @@ class CalendarWidget(QWidget):
 
     def render_month(self):
         self.month_label.setText(f'{self.year:04d}-{self.month:02d}')
-        
-        #get data to show overview of each day 
+    
+        #get data for info per day tile 
         connection = connect_db()
         todo_stats = get_todo_stats_for_month(connection, self.year, self.month)
-        journal_days = get_journal_days_for_month(connection, self.year, self.month)
+        journal_status = get_journal_status_for_month(connection, self.year, self.month)
+        total_daily, daily_done_by_day = get_daily_habit_stats_for_month(connection, self.year, self.month)
         connection.close()
-
+        
         cal = calendar.Calendar(firstweekday=calendar.MONDAY)
         month_days = list(cal.itermonthdates(self.year, self.month))
+        
 
         if len(month_days) < 42:
             last = month_days[-1]
@@ -124,15 +127,18 @@ class CalendarWidget(QWidget):
             tile.set_day(day_iso, day_date.day, in_current_month, selected)
             
             #displaying stats per day
-            info_lines: list[str] = []
-            
-            stats = todo_stats.get(day_iso)
-            if stats:
-                done, total = stats
-                info_lines.append(f'{done}/{total} todos')
-            if day_iso in journal_days:
-                info_lines.append('journal')
-                
+            todo_done, todo_total = todo_stats.get(day_iso, (0, 0))
+            daily_done = daily_done_by_day.get(day_iso, 0)
+
+            journal_has = journal_status.get(day_iso, False)
+            journal_text = '✓' if journal_has else '-'
+
+            info_lines = [
+                f'📝 {todo_done}/{todo_total}' if todo_total else '📝 -',
+                f'🔁  {daily_done}/{total_daily}' if total_daily else '🔁  -',
+                f'📓 {journal_text}',
+            ]
+
             tile.set_info_lines(info_lines)
 
 

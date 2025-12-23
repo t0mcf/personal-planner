@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QProgressBar
 )
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 
 from db.core import connect_db
 from db.todos import (
@@ -36,6 +36,7 @@ from ui.todos.calendar_widget import CalendarWidget
 
 
 class DayView(QWidget):
+    open_manager = Signal()
     def __init__(self, day: str | None = None):
         super().__init__()
 
@@ -47,16 +48,32 @@ class DayView(QWidget):
     #___ui functions___
 
     def build_ui(self):
-        main_layout = QVBoxLayout(self)
         
+        main_layout = QVBoxLayout(self)
+
+        center_row = QHBoxLayout()
+        main_layout.addLayout(center_row, 1)
+
+        #workaround to prevent scaling in fullscreen (looks weird)
+        #maybe take out again idk, for now it feels better
+        content_widget = QWidget()
+        content_widget.setMaximumWidth(1400)
+        content_widget.setMaximumHeight(1000)
+
+        center_row.addWidget(content_widget, 0)
+
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(10)
+                
         top_bar = QHBoxLayout()
-        main_layout.addLayout(top_bar)
+        content_layout.addLayout(top_bar)
         
         #summary cards on top
         
         summary_row = QHBoxLayout()
         summary_row.setSpacing(12)
-        main_layout.addLayout(summary_row)
+        content_layout.addLayout(summary_row)
 
         self.summary_todos_card, self.summary_todos_value = self.make_summary_card('Todos', '-')
         self.summary_habits_card, self.summary_habits_value = self.make_summary_card('Habits', '-')
@@ -88,13 +105,17 @@ class DayView(QWidget):
         next_button.clicked.connect(self.next_day)
         top_bar.addWidget(next_button)
         
-        calendar_button = QToolButton()
-        calendar_button.setText('📅')
+        calendar_button = QPushButton('📅')
         calendar_button.clicked.connect(self.open_calendar)
         top_bar.addWidget(calendar_button)
         
+        #to switch to manager view
+        manager_button = QPushButton('⚙️')
+        manager_button.clicked.connect(self.open_manager.emit)
+        top_bar.addWidget(manager_button)
+        
         splitter = QSplitter(Qt.Horizontal)
-        main_layout.addWidget(splitter, 1)
+        content_layout.addWidget(splitter, 1)
         
         #for habits and todos
         left_panel = (QWidget())
@@ -268,7 +289,7 @@ class DayView(QWidget):
         save_journal_entry(connection, self.day, text)
         connection.close()
         
-        self.summary_journal_value.setText('✓' if text.strip() else '-')
+        self.summary_journal_value.setText('📓 ✓' if text.strip() else '📓 -')
 
 
     #___day switching logic___
@@ -381,19 +402,19 @@ class DayView(QWidget):
         streak_label.setMinimumWidth(46)
         streak_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        plus_btn = QPushButton('+')
-        plus_btn.setFixedWidth(32)
-        plus_btn.setProperty('habit_id', habit_id)
-        plus_btn.clicked.connect(self.increment_weekly_habit)
+        plus_button = QPushButton('+')
+        plus_button.setFixedWidth(32)
+        plus_button.setProperty('habit_id', habit_id)
+        plus_button.clicked.connect(self.increment_weekly_habit)
 
         if target > 0 and done >= target:
-            plus_btn.setEnabled(False)
+            plus_button.setEnabled(False)
 
         layout.addWidget(label)
         layout.addWidget(progress, 1)
         layout.addWidget(count_label)
         layout.addWidget(streak_label)
-        layout.addWidget(plus_btn)
+        layout.addWidget(plus_button)
 
         return row
     
@@ -429,6 +450,9 @@ class DayView(QWidget):
 
         connection = connect_db()
         habits = list_active_habits(connection)
+        
+        #only active habits: maybe change list_active_habits to alr do that if needed elsewhere, but for now this works 
+        habits = [h for h in habits if h['start_date'] <= self.day]
 
         daily = [h for h in habits if h['frequency'] == 'daily']
         weekly = [h for h in habits if h['frequency'] == 'weekly']
@@ -450,12 +474,12 @@ class DayView(QWidget):
         connection.close()
 
         if not daily:
-            empty = QLabel('No daily habits yet')
+            empty = QLabel('No daily habits active')
             empty.setStyleSheet('color: #777;')
             self.daily_habits_layout.addWidget(empty)
 
         if not weekly:
-            empty = QLabel('No weekly habits yet')
+            empty = QLabel('No weekly habits active')
             empty.setStyleSheet('color: #777;')
             self.weekly_habits_layout.addWidget(empty)
             

@@ -1,5 +1,6 @@
 from datetime import date as dt_date, timedelta
 
+
 #frequency is supposed to be 'daily' or 'weekly'
 #weekly_target only for weekly (e.g. 3 workouts)
 #active if we want to provide on and off switching (1=active, 0=inactive)
@@ -293,3 +294,148 @@ def get_weekly_streak(connection, habit_id: int, as_of_day: str) -> int:
         current = week_start - timedelta(days=1)  # go to previous week
 
     return streak
+
+
+def get_daily_habit_stats_for_month(connection, year: int, month: int) -> tuple[int, dict[str, int]]:
+    start_date = dt_date(year, month, 1)
+    if month == 12:
+        end_date = dt_date(year + 1, 1, 1)
+    else:
+        end_date = dt_date(year, month + 1, 1)
+
+    cursor = connection.cursor()
+
+    cursor.execute(
+        '''
+        SELECT COUNT(*)
+        FROM habits
+        WHERE active = 1 AND frequency = 'daily'
+        '''
+    )
+    total_daily = int(cursor.fetchone()[0] or 0)
+
+    if total_daily == 0:
+        return 0, {}
+
+    cursor.execute(
+        '''
+        SELECT hl.date, COUNT(*) AS done_count
+        FROM habit_log hl
+        JOIN habits h ON h.id = hl.habit_id
+        WHERE h.active = 1
+          AND h.frequency = 'daily'
+          AND hl.count >= 1
+          AND hl.date >= ?
+          AND hl.date < ?
+        GROUP BY hl.date
+        ''',
+        (start_date.isoformat(), end_date.isoformat()),
+    )
+
+    done_by_day: dict[str, int] = {}
+    for row in cursor.fetchall():
+        day = row[0]
+        done_count = int(row[1] or 0)
+        done_by_day[str(day)] = done_count
+
+    return total_daily, done_by_day
+
+
+
+import sqlite3
+
+
+def insert_habit(
+    connection: sqlite3.Connection,
+    title: str,
+    emoji: str | None,
+    frequency: str,
+    weekly_target: int | None,
+    active: bool,
+    start_date: str | None,
+) -> int:
+    cursor = connection.execute(
+        '''
+        INSERT INTO habits (title, emoji, frequency, weekly_target, active, start_date)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            title,
+            emoji,
+            frequency,
+            weekly_target,
+            1 if active else 0,
+            start_date,
+        ),
+    )
+    connection.commit()
+    return int(cursor.lastrowid)
+
+
+def list_all_habits(connection: sqlite3.Connection) -> list[dict]:
+    cursor = connection.execute(
+        '''
+        SELECT id, title, emoji, frequency, weekly_target, active, start_date
+        FROM habits
+        ORDER BY active DESC, id ASC
+        '''
+    )
+    return [dict(row) for row in cursor.fetchall()]
+
+
+def set_habit_active(
+    connection: sqlite3.Connection,
+    habit_id: int,
+    active: bool,
+) -> None:
+    connection.execute(
+        '''
+        UPDATE habits
+        SET active = ?
+        WHERE id = ?
+        ''',
+        (1 if active else 0, habit_id),
+    )
+    connection.commit()
+
+
+def delete_habit(
+    connection: sqlite3.Connection,
+    habit_id: int,
+) -> None:
+    connection.execute(
+        'DELETE FROM habit_log WHERE habit_id = ?',
+        (habit_id,),
+    )
+    connection.execute(
+        'DELETE FROM habits WHERE id = ?',
+        (habit_id,),
+    )
+    connection.commit()
+    
+
+def update_habit(
+    connection: sqlite3.Connection,
+    habit_id: int,
+    title: str,
+    emoji: str | None,
+    frequency: str,
+    weekly_target: int | None,
+    start_date: str | None,
+) -> None:
+    connection.execute(
+        '''
+        UPDATE habits
+        SET title = ?, emoji = ?, frequency = ?, weekly_target = ?, start_date = ?
+        WHERE id = ?
+        ''',
+        (
+            title,
+            emoji,
+            frequency,
+            weekly_target,
+            start_date,
+            habit_id,
+        ),
+    )
+    connection.commit()

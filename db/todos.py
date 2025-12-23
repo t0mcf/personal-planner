@@ -130,3 +130,20 @@ def get_todo_stats_for_month(connection, year: int, month: int) -> dict[str, tup
 
     return stats
 
+
+def update_todo(
+    connection: sqlite3.Connection,
+    todo_id: int,
+    title: str,
+    date: str | None,
+    ) -> None:
+    connection.execute(
+        '''
+        UPDATE todos
+        SET title = ?, date = ?
+        WHERE id = ?
+        ''',
+        (title, date, todo_id),
+    )
+    connection.commit()
+

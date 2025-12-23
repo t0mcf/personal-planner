@@ -46,7 +46,7 @@ def save_journal_entry(
 
 
 #intended for usage with the calendar view to get info whether journaling has been done
-def get_journal_days_for_month(connection, year: int, month: int) -> set[str]:
+def get_journal_status_for_month(connection, year: int, month: int) -> set[str]:
     start_date = dt_date(year, month, 1)
 
     if month == 12:
@@ -60,14 +60,16 @@ def get_journal_days_for_month(connection, year: int, month: int) -> set[str]:
     cursor = connection.cursor()
     cursor.execute(
         '''
-        SELECT date
+        SELECT date, text
         FROM journal
         WHERE date >= ?
           AND date < ?
-          AND text IS NOT NULL
-          AND TRIM(text) != ''
         ''',
         (start_iso, end_iso),
     )
 
-    return {row[0] for row in cursor.fetchall()}
+    status: dict[str, bool] = {}
+    for day, text in cursor.fetchall():
+        status[str(day)] = bool((text or '').strip())
+        
+    return status
