@@ -5,6 +5,7 @@ from db.todos import init_todo_tables
 from db.journal import init_journal_tables
 from db.habits import init_habit_tables
 from db.settings import init_settings_table
+from db.xp import init_xp_tables
 
 DB_PATH = Path('data') / 'planner.db'
 
@@ -21,3 +22,4 @@ def init_db(connection: sqlite3.Connection) -> None:
     init_journal_tables(connection)
     init_habit_tables(connection)
     init_settings_table(connection)
+    init_xp_tables(connection)
