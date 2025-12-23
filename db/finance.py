@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import date as dt_date
 
 #scheme explanation:
 #name is for merchants etc
@@ -269,3 +270,33 @@ def insert_test_transaction(connection: sqlite3.Connection) -> None:
             category=category,
             source="test_data",
         )
+
+
+#for home overview, maybe for other functions too later on 
+def get_mtd_summary(connection: sqlite3.Connection, day_iso: str) -> dict:
+    day = dt_date.fromisoformat(day_iso)
+    start = dt_date(day.year, day.month, 1).isoformat()
+
+    cursor = connection.execute(
+        '''
+        SELECT
+            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
+            SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS expenses
+        FROM transactions
+        WHERE tx_date >= ?
+          AND tx_date <= ?
+        ''',
+        (start, day_iso),
+    )
+    row = cursor.fetchone()
+    income = float(row['income'] or 0)
+    expenses = float(row['expenses'] or 0)
+    net = income + expenses  
+
+    return {
+        'income': income,
+        'expenses': expenses,
+        'net': net,
+        'start_date': start,
+        'end_date': day_iso,
+    }

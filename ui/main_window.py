@@ -1,5 +1,3 @@
-from typing import Optional
-import PySide6.QtCore
 from PySide6.QtWidgets import QMainWindow, QTabWidget
 from ui.finance.finance_tab import FinanceTab
 from ui.todos.todos_container import TodosContainer
