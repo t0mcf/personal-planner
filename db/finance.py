@@ -300,3 +300,19 @@ def get_mtd_summary(connection: sqlite3.Connection, day_iso: str) -> dict:
         'start_date': start,
         'end_date': day_iso,
     }
+
+
+def list_recent_transactions(connection: sqlite3.Connection, limit: int = 5) -> list[dict]:
+    query = connection.execute(
+        """
+        SELECT tx_date AS date,
+               amount,
+               COALESCE(name, '') AS name,
+               COALESCE(description, '') AS description
+        FROM transactions
+        ORDER BY tx_date DESC, id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    return [dict(row) for row in query.fetchall()]

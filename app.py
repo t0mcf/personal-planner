@@ -1,6 +1,5 @@
 import os 
-os.environ['QT_LOGGING_RULES'] = 'qt.pointer.dispatch=false' #to get rid of annoying log message
-
+from PySide6.QtNetwork import QNetworkProxy
 
 from PySide6.QtWidgets import QApplication, QMainWindow
 import sys
@@ -11,6 +10,8 @@ from db.core import connect_db, init_db
 
 
 def main():
+    QNetworkProxy.setApplicationProxy(QNetworkProxy(QNetworkProxy.NoProxy)) #to make weather work
+    os.environ['QT_LOGGING_RULES'] = 'qt.pointer.dispatch=false' #to get rid of annoying log message
     db_connection = connect_db()
     init_db(db_connection)    
     db_connection.close()
