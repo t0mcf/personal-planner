@@ -15,7 +15,7 @@ class TodosContainer(QWidget):
         self._stack.addWidget(self._day_view)
         self._stack.addWidget(self._manager_view)
 
-        # top navigation for switching between day and manager view (same as FinanceTab)
+        #top nav for switching to manager now similar to finance tab
         nav = QHBoxLayout()
 
         self._btn_day = QToolButton()
@@ -27,7 +27,7 @@ class TodosContainer(QWidget):
         self._btn_manager.setCheckable(True)
 
         group = QButtonGroup(self)
-        group.setExclusive(True)  # have only one active at a time
+        group.setExclusive(True)  
         group.addButton(self._btn_day, 0)
         group.addButton(self._btn_manager, 1)
 
@@ -43,7 +43,6 @@ class TodosContainer(QWidget):
 
         self.setLayout(root)
 
-        # Default: Day
         self._stack.setCurrentIndex(0)
         self._btn_day.setChecked(True)
 

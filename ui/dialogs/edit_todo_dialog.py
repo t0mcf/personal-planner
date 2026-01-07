@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate, Signal
 
-from db.core import connect_db
 from db.todos import update_todo  
 
 from helpers.db import db_session  

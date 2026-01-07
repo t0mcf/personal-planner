@@ -166,7 +166,7 @@ class HomeView(QWidget):
         self.finance_layout.addLayout(finance_btn_row)
         finance_btn_row.addStretch(1)
 
-        open_finance = QPushButton('Open Finance')
+        open_finance = QPushButton('Open Finances')
         open_finance.clicked.connect(self.open_finance.emit)
         finance_btn_row.addWidget(open_finance)
 
@@ -238,7 +238,7 @@ class HomeView(QWidget):
         self.today_layout.addLayout(today_btn_row)
         today_btn_row.addStretch(1)
 
-        open_day = QPushButton('Open Day')
+        open_day = QPushButton('Open Activity')
         open_day.clicked.connect(self.open_todos.emit)
         today_btn_row.addWidget(open_day)
 
@@ -478,6 +478,8 @@ class HomeView(QWidget):
             self.latest_achievement_placeholder.setStyleSheet('font-size: 12px; font-weight: 650; color: #666;')
             self.latest_achievement_layout.addWidget(self.latest_achievement_placeholder)
             return
+
+        self.latest_achievement_placeholder = QLabel('')
 
         for r in rows[:2]:
             tile = AchievementTile(

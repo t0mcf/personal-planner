@@ -1,11 +1,13 @@
 from datetime import date as dt_date, timedelta
 from helpers.dates import month_range
+import sqlite3
+
 
 #frequency is supposed to be 'daily' or 'weekly'
 #weekly_target only for weekly (e.g. 3 workouts)
 #active if we want to provide on and off switching (1=active, 0=inactive)
 #habit log for streaks etc
-def init_habit_tables(connection):
+def init_habit_tables(connection: sqlite3.Connection) -> None:
     connection.execute("""
                        CREATE TABLE IF NOT EXISTS habits(
                            id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +32,7 @@ def init_habit_tables(connection):
     connection.commit()
     
     
-def list_active_habits(connection) -> list[dict]:
+def list_active_habits(connection: sqlite3.Connection) -> list[dict]:
     cursor = connection.cursor()
     cursor.execute(
         '''
@@ -58,7 +60,7 @@ def list_active_habits(connection) -> list[dict]:
 
 
 #intended for daily habit use, maybe restrict to that 
-def set_daily_done(connection, habit_id: int, day: str, done: bool):
+def set_daily_done(connection: sqlite3.Connection, habit_id: int, day: str, done: bool) -> None:
     cursor = connection.cursor()
 
     if done:
@@ -99,7 +101,7 @@ def increment_habit_today(connection, habit_id: int, day: str):
 
 
 #fetch if a certain habit is completed
-def is_daily_done(connection, habit_id: int, day: str) -> bool:
+def is_daily_done(connection: sqlite3.Connection, habit_id: int, day: str) -> bool:
     cursor = connection.cursor()
     cursor.execute(
         '''
@@ -116,7 +118,7 @@ def is_daily_done(connection, habit_id: int, day: str) -> bool:
 
 #important for streaks to compare whether weekly progress >= goal and for daily display
 #deprecated progrably
-def get_weekly_progress(connection, habit_id: int, day: str) -> tuple[int, int]:
+def get_weekly_progress(connection: sqlite3.Connection, habit_id: int, day: str) -> tuple[int, int]:
     day_date = dt_date.fromisoformat(day)
 
     week_start = day_date - timedelta(days=day_date.weekday())  # Monday
@@ -154,7 +156,7 @@ def get_weekly_progress(connection, habit_id: int, day: str) -> tuple[int, int]:
 
 
 #have to think about whether this may destroy logic, maybe remove again
-def decrement_habit_today(connection, habit_id: int, day: str):
+def decrement_habit_today(connection: sqlite3.Connection, habit_id: int, day: str) -> None:
     cursor = connection.cursor()
 
     cursor.execute(
@@ -194,7 +196,7 @@ def decrement_habit_today(connection, habit_id: int, day: str):
 
 #wrapper, maybe useful, might remove if not used later on
 #deprecated prolly
-def is_weekly_done(connection, habit_id: int, day: str) -> bool:
+def is_weekly_done(connection: sqlite3.Connection, habit_id: int, day: str) -> bool:
     done, target = get_weekly_progress(connection, habit_id, day)
     if not target:
         return False
@@ -202,8 +204,8 @@ def is_weekly_done(connection, habit_id: int, day: str) -> bool:
 
 
 
-#daily streak calculation (first draft)
-def get_daily_streak(connection, habit_id: int, as_of_day: str) -> int:
+#daily streak calculation 
+def get_daily_streak(connection: sqlite3.Connection, habit_id: int, as_of_day: str) -> int:
     cursor = connection.cursor()
 
     cursor.execute(
@@ -245,7 +247,7 @@ def get_daily_streak(connection, habit_id: int, as_of_day: str) -> int:
     return streak
 
 
-def get_weekly_streak(connection, habit_id: int, as_of_day: str) -> int:
+def get_weekly_streak(connection: sqlite3.Connection, habit_id: int, as_of_day: str) -> int:
     cursor = connection.cursor()
 
     cursor.execute(
@@ -269,7 +271,7 @@ def get_weekly_streak(connection, habit_id: int, as_of_day: str) -> int:
     streak = 0
 
     while True:
-        week_start = current - timedelta(days=current.weekday())  # monday
+        week_start = current - timedelta(days=current.weekday())  #monday
         week_end = week_start + timedelta(days=6)
 
         if start_date and week_end.isoformat() < start_date:
@@ -291,12 +293,12 @@ def get_weekly_streak(connection, habit_id: int, as_of_day: str) -> int:
             break
 
         streak += 1
-        current = week_start - timedelta(days=1)  # go to previous week
+        current = week_start - timedelta(days=1)  #go to previous week
 
     return streak
 
 
-def get_daily_habit_stats_for_month(connection, year: int, month: int) -> tuple[int, dict[str, int]]:
+def get_daily_habit_stats_for_month(connection: sqlite3.Connection, year: int, month: int) -> tuple[int, dict[str, int]]:
     start_date, end_date = month_range(year, month)
 
     cursor = connection.cursor()
@@ -319,10 +321,10 @@ def get_daily_habit_stats_for_month(connection, year: int, month: int) -> tuple[
         FROM habit_log hl
         JOIN habits h ON h.id = hl.habit_id
         WHERE h.active = 1
-          AND h.frequency = 'daily'
-          AND hl.count >= 1
-          AND hl.date >= ?
-          AND hl.date < ?
+        AND h.frequency = 'daily'
+        AND hl.count >= 1
+        AND hl.date >= ?
+        AND hl.date < ?
         GROUP BY hl.date
         ''',
         (start_date.isoformat(), end_date.isoformat()),
@@ -335,11 +337,6 @@ def get_daily_habit_stats_for_month(connection, year: int, month: int) -> tuple[
         done_by_day[str(day)] = done_count
 
     return total_daily, done_by_day
-
-
-
-import sqlite3
-
 
 def insert_habit(
     connection: sqlite3.Connection,
@@ -395,10 +392,7 @@ def set_habit_active(
     connection.commit()
 
 
-def delete_habit(
-    connection: sqlite3.Connection,
-    habit_id: int,
-) -> None:
+def delete_habit(connection: sqlite3.Connection, habit_id: int) -> None:
     connection.execute(
         'DELETE FROM habit_log WHERE habit_id = ?',
         (habit_id,),

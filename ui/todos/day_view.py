@@ -728,7 +728,6 @@ class DayView(QWidget):
             else:
                 self.summary_streaks_value.setText('-')
 
-            # Option A: Journal ✓ only if there is any TEXT (mood/sleep do NOT count)
             jd = get_journal_data(connection, self.day) or {}
             notes = (jd.get("text") or "")
             ww = (jd.get("went_well") or "")

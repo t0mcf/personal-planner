@@ -1,21 +1,17 @@
 import sqlite3
-from datetime import date as dt_date
 from helpers.dates import month_range
 
 
 def init_journal_tables(connection: sqlite3.Connection) -> None:
     connection.execute("""
         CREATE TABLE IF NOT EXISTS journal (
-            date TEXT PRIMARY KEY, -- YYYY-MM-DD
+            date TEXT PRIMARY KEY, 
 
-            -- Free journal / notes (kept)
             text TEXT NOT NULL DEFAULT '',
 
-            -- Quick check-in (does NOT count as "journal done" by itself)
-            mood INTEGER,   -- 1..5, NULL = not set
-            sleep INTEGER,  -- 1..5, NULL = not set
+            mood INTEGER,
+            sleep INTEGER,  
 
-            -- Reflection
             went_well TEXT NOT NULL DEFAULT '',
             difficult TEXT NOT NULL DEFAULT '',
             remember TEXT NOT NULL DEFAULT ''
@@ -122,7 +118,7 @@ def get_journal_status_for_month(connection, year: int, month: int) -> dict[str,
         SELECT date, text, mood, sleep, went_well, difficult, remember
         FROM journal
         WHERE date >= ?
-          AND date < ?
+        AND date < ?
         """,
         (start_iso, end_iso),
     )
@@ -150,8 +146,8 @@ def get_journal_mood_for_month(connection, year: int, month: int) -> dict[str, i
         SELECT date, mood
         FROM journal
         WHERE date >= ?
-          AND date < ?
-          AND mood IS NOT NULL
+        AND date < ?
+        AND mood IS NOT NULL
         """,
         (start_iso, end_iso),
     )

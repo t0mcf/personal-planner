@@ -1,6 +1,5 @@
-from PySide6.QtWidgets import QWidget, QGridLayout, QLabel, QFrame
+from PySide6.QtWidgets import QGridLayout, QLabel, QFrame
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
 
 class AchievementTile(QFrame):
     def __init__(self, name: str, description: str, unlocked: bool, hidden: bool):

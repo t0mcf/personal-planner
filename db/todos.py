@@ -1,5 +1,4 @@
 import sqlite3
-from datetime import date as dt_date
 from helpers.dates import month_range
 
 
@@ -8,7 +7,7 @@ def init_todo_tables(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS todos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
-            date TEXT, -- YYYY-MM-DD, NULL = no specific day
+            date TEXT, 
             completed INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
@@ -59,10 +58,10 @@ def list_all_todos(
         SELECT id, title, date, completed
         FROM todos
         ORDER BY 
-            CASE WHEN date IS NULL THEN 1 ELSE 0 END,
-            date ASC,
-            completed ASC,
-            id ASC
+        CASE WHEN date IS NULL THEN 1 ELSE 0 END,
+        date ASC,
+        completed ASC,
+        id ASC
         """
     )
     return [dict(row) for row in cursor.fetchall()]
@@ -107,12 +106,12 @@ def get_todo_stats_for_month(connection, year: int, month: int) -> dict[str, tup
     cursor.execute(
         '''
         SELECT date,
-               SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS done,
-               COUNT(*) AS total
+        SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS done,
+        COUNT(*) AS total
         FROM todos
         WHERE date IS NOT NULL
-          AND date >= ?
-          AND date < ?
+        AND date >= ?
+        AND date < ?
         GROUP BY date
         ''',
         (start_iso, end_iso),

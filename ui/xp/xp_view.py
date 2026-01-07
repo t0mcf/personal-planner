@@ -32,7 +32,7 @@ class XPView(QWidget):
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(14)
 
-        title = QLabel('XP')
+        title = QLabel('Progression')
         title.setStyleSheet('font-size: 26px; font-weight: 900;')
         layout.addWidget(title)
 
@@ -109,7 +109,7 @@ class XPView(QWidget):
         right_col.setSpacing(10)
         mid.addLayout(right_col, 1)
 
-        ach_title = QLabel('achievements')
+        ach_title = QLabel('Achievements')
         ach_title.setStyleSheet('font-size: 14px; font-weight: 900; color: #111;')
         right_col.addWidget(ach_title)
 

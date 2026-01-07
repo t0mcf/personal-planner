@@ -5,11 +5,10 @@ from PySide6.QtCore import QUrl
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QInputDialog, QSizePolicy
 
-from db.core import connect_db
-from db.settings import get_setting, set_setting #for weather 
+from db.settings import get_setting, set_setting 
 from helpers.db import db_session
 
-#just some japan presets for now, add more (maybe capitals of some big countries all over the world)
+#just some japan presets for now, maybe add more later (maybe just capitals of some big countries all over the world?)
 CITY_PRESETS = {
     'Kyoto': (35.0116, 135.7681),
     'Osaka': (34.6937, 135.5023),
@@ -168,7 +167,7 @@ class WeatherWidget(QWidget):
         raw = bytes(reply.readAll()).decode('utf-8', errors='replace')
         reply.deleteLater()
 
-        #used err for debugging before but no it works so this is sufficient
+        #used err for debugging before but now it works so this is sufficient
         if err != QNetworkReply.NoError:
             self.small_label.setText(f'Weather fetch failed')
             return
@@ -204,7 +203,7 @@ class WeatherWidget(QWidget):
         except Exception as e:
             self.small_label.setText(f'Weather parse failed: {e}')
 
-    #matched some of this by hand, maybe there is a better solution but this seems sufficient for now 
+    #matched some of this by hand, maybe there is a better solution but this seems ok for now 
     def weather_icon_for_code(self, code: int) -> str:
         if code == 0:
             return '☀'

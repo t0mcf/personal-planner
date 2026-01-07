@@ -31,13 +31,13 @@ from db.habits import (
 from db.todos import (
     insert_todo,
     list_all_todos,
-    delete_todo,
-    set_todo_completed
+    delete_todo
 )
 
 from ui.dialogs.edit_habit_dialog import EditHabitDialog
 from ui.dialogs.edit_todo_dialog import EditTodoDialog
 
+from actions.actions import toggle_todo
 
 # for habits
 EMOJIS = [
@@ -83,11 +83,9 @@ class ManagerView(QWidget):
         self.tabs.addTab(self.habits_tab, 'Habits')
         self.tabs.addTab(self.todos_tab, 'Todos')
 
-        # performance: only refresh the visible tab when user switches
         self.tabs.currentChanged.connect(lambda _: self.refresh())
 
     def refresh(self):
-        # performance: only refresh active tab (not both every time)
         idx = self.tabs.currentIndex()
         if idx == 0:
             self.habits_tab.refresh()
@@ -471,7 +469,7 @@ class TodosManagerWidget(QWidget):
 
             filtered.append(t)
 
-        # sort so that completed are at bottom
+        #sort so that completed are at bottom
         filtered.sort(key=lambda t: t['completed'])
 
         for todo in filtered:
@@ -534,7 +532,7 @@ class TodosManagerWidget(QWidget):
             return
 
         with db_session() as connection:
-            set_todo_completed(connection, int(todo_id), checked)
+            toggle_todo(connection, dt_date.today().isoformat(), int(todo_id), checked)
 
         self.refresh()
         self.changed.emit()

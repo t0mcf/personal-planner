@@ -109,7 +109,6 @@ def pick_description(row: dict, mapping: dict[str, str | None]) -> str:
         if v:
             return v
 
-    # else fall back to common paypal-ish columns if present
     for key in ("item_title", "subject", "note"):
         col = mapping.get(key)
         if not col:
@@ -133,7 +132,7 @@ def parse_transactions_from_csv(
     default_currency: str = "JPY",
     only_completed: bool = False,
     mapping: dict[str, str | None] | None = None,
-    preset: str | None = None,  # e.g. "paypal"
+    preset: str | None = None, 
 ) -> list[dict]:
     df = read_csv(csv_path)
 
@@ -174,10 +173,6 @@ def parse_transactions_from_csv(
             currency = parse_currency(row.get(cols["currency"]), default_currency=default_currency)
         else:
             currency = parse_currency(None, default_currency=default_currency)
-
-        # output:
-        # - for JPY we can store amount directly as fallback
-        # - for non-JPY we store amount_original + currency, and db layer converts using currency_rates
         tx: dict = {
             "tx_date": tx_date,
             "name": name or None,

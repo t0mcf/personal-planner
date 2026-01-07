@@ -1,6 +1,5 @@
 import sqlite3
-from datetime import date as dt_date, date, datetime
-from helpers.dates import valid_day
+from datetime import date as dt_date, date, datetime, timedelta
 
 #on the transactions table: 
 #amount is stored in JPY
@@ -123,8 +122,8 @@ def set_fx_rate_to_jpy(connection: sqlite3.Connection, currency: str, fx_rate_to
         INSERT INTO currency_rates (currency, fx_rate_to_jpy, updated_at)
         VALUES (?, ?, datetime('now'))
         ON CONFLICT(currency) DO UPDATE SET
-            fx_rate_to_jpy = excluded.fx_rate_to_jpy,
-            updated_at = datetime('now')
+        fx_rate_to_jpy = excluded.fx_rate_to_jpy,
+        updated_at = datetime('now')
         """,
         (cur, float(fx_rate_to_jpy)),
     )
@@ -185,7 +184,7 @@ def insert_transaction(
         """
         INSERT OR IGNORE INTO transactions
         (tx_date, amount, currency, amount_original, fx_rate_to_jpy,
-         name, description, category, source, recurring_rule_id, external_id)
+        name, description, category, source, recurring_rule_id, external_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
@@ -235,13 +234,13 @@ def update_transaction(
         """
         UPDATE transactions
         SET tx_date = ?,
-            amount = ?,
-            currency = ?,
-            amount_original = ?,
-            fx_rate_to_jpy = ?,
-            category = ?,
-            name = ?,
-            description = ?
+        amount = ?,
+        currency = ?,
+        amount_original = ?,
+        fx_rate_to_jpy = ?,
+        category = ?,
+        name = ?,
+        description = ?
         WHERE id = ?
         """,
         (tx_date, amt_jpy, cur, amt_orig, fx, category, name, description, int(tx_id)),
@@ -259,9 +258,9 @@ def get_transaction_by_id(connection: sqlite3.Connection, tx_id: int) -> dict | 
     q = connection.execute(
         """
         SELECT
-            id, tx_date, amount,
-            currency, amount_original, fx_rate_to_jpy,
-            category, name, description, source, recurring_rule_id, external_id
+        id, tx_date, amount,
+        currency, amount_original, fx_rate_to_jpy,
+        category, name, description, source, recurring_rule_id, external_id
         FROM transactions
         WHERE id = ?
         """,
@@ -304,17 +303,17 @@ def list_transactions(
     cur = connection.execute(
         f"""
         SELECT
-            id,
-            tx_date as date,
-            amount,
-            COALESCE(NULLIF(category, ''), 'Uncategorized') as category,
-            COALESCE(name, '') as name,
-            COALESCE(description, '') as info,
-            COALESCE(source, '') as source,
-            recurring_rule_id,
-            currency,
-            amount_original,
-            fx_rate_to_jpy
+        id,
+        tx_date as date,
+        amount,
+        COALESCE(NULLIF(category, ''), 'Uncategorized') as category,
+        COALESCE(name, '') as name,
+        COALESCE(description, '') as info,
+        COALESCE(source, '') as source,
+        recurring_rule_id,
+        currency,
+        amount_original,
+        fx_rate_to_jpy
         FROM transactions
         {where_sql}
         ORDER BY tx_date DESC, id DESC
@@ -398,8 +397,8 @@ def get_timeseries_data(
     cur = connection.execute(
         f"""
         SELECT {label} as label,
-               SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as income,
-               SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) as expenses
+        SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) as income,
+        SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) as expenses
         FROM transactions
         WHERE tx_date BETWEEN ? AND ? {extra}
         GROUP BY label
@@ -424,17 +423,17 @@ def list_recent_transactions(connection: sqlite3.Connection, limit: int = 10) ->
     q = connection.execute(
         """
         SELECT
-            id,
-            tx_date AS date,
-            amount,
-            COALESCE(NULLIF(category, ''), 'Uncategorized') AS category,
-            COALESCE(name, '') AS name,
-            COALESCE(description, '') AS description,
-            COALESCE(source, '') AS source,
-            recurring_rule_id,
-            currency,
-            amount_original,
-            fx_rate_to_jpy
+        id,
+        tx_date AS date,
+        amount,
+        COALESCE(NULLIF(category, ''), 'Uncategorized') AS category,
+        COALESCE(name, '') AS name,
+        COALESCE(description, '') AS description,
+        COALESCE(source, '') AS source,
+        recurring_rule_id,
+        currency,
+        amount_original,
+        fx_rate_to_jpy
         FROM transactions
         ORDER BY tx_date DESC, id DESC
         LIMIT ?
@@ -451,11 +450,11 @@ def get_mtd_summary(connection: sqlite3.Connection, day_iso: str) -> dict:
     q = connection.execute(
         """
         SELECT
-            SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
-            SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS expenses
+        SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
+        SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS expenses
         FROM transactions
         WHERE tx_date >= ?
-          AND tx_date <= ?
+        AND tx_date <= ?
         """,
         (start, day_iso),
     )
@@ -499,7 +498,7 @@ def create_recurring_rule(
         """
         INSERT INTO recurring_rules
         (name, amount, currency, amount_original, fx_rate_to_jpy,
-         category, description, day_of_month, start_date, active)
+        category, description, day_of_month, start_date, active)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         """,
         (
@@ -538,8 +537,8 @@ def list_recurring_rules(connection: sqlite3.Connection, active_only: bool = Fal
         q = connection.execute(
             """
             SELECT
-                id, name, amount, currency, amount_original, fx_rate_to_jpy,
-                category, description, day_of_month, start_date, end_date, active
+            id, name, amount, currency, amount_original, fx_rate_to_jpy,
+            category, description, day_of_month, start_date, end_date, active
             FROM recurring_rules
             WHERE active = 1
             ORDER BY id DESC
@@ -549,8 +548,8 @@ def list_recurring_rules(connection: sqlite3.Connection, active_only: bool = Fal
         q = connection.execute(
             """
             SELECT
-                id, name, amount, currency, amount_original, fx_rate_to_jpy,
-                category, description, day_of_month, start_date, end_date, active
+            id, name, amount, currency, amount_original, fx_rate_to_jpy,
+            category, description, day_of_month, start_date, end_date, active
             FROM recurring_rules
             ORDER BY active DESC, id DESC
             """
@@ -562,8 +561,8 @@ def get_recurring_rule_by_id(connection: sqlite3.Connection, rule_id: int) -> di
     q = connection.execute(
         """
         SELECT
-            id, name, amount, currency, amount_original, fx_rate_to_jpy,
-            category, description, day_of_month, start_date, end_date, active
+        id, name, amount, currency, amount_original, fx_rate_to_jpy,
+        category, description, day_of_month, start_date, end_date, active
         FROM recurring_rules
         WHERE id = ?
         """,
@@ -600,16 +599,16 @@ def update_recurring_rule(
         """
         UPDATE recurring_rules
         SET name = ?,
-            amount = ?,
-            currency = ?,
-            amount_original = ?,
-            fx_rate_to_jpy = ?,
-            category = ?,
-            description = ?,
-            day_of_month = ?,
-            start_date = ?,
-            active = ?,
-            end_date = ?
+        amount = ?,
+        currency = ?,
+        amount_original = ?,
+        fx_rate_to_jpy = ?,
+        category = ?,
+        description = ?,
+        day_of_month = ?,
+        start_date = ?,
+        active = ?,
+        end_date = ?
         WHERE id = ?
         """,
         (
@@ -685,7 +684,7 @@ def sync_recurring_transactions(
                     """
                     INSERT OR IGNORE INTO transactions
                     (tx_date, amount, currency, amount_original, fx_rate_to_jpy,
-                     name, description, category, source, recurring_rule_id, external_id)
+                    name, description, category, source, recurring_rule_id, external_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'recurring', ?, ?)
                     """,
                     (
@@ -743,3 +742,13 @@ def has_breadwinner_transaction(connection: sqlite3.Connection, threshold_jpy: i
         (int(threshold_jpy),),
     )
     return cur.fetchone() is not None
+
+
+def last_day_of_month(value: date) -> date:
+    if value.month == 12:
+        return date(value.year, 12, 31)
+    return date(value.year, value.month + 1, 1) - timedelta(days=1)
+
+def valid_day(year: int, month: int, day_of_month: int) -> date:
+    last = last_day_of_month(date(year, month, 1))
+    return date(year, month, min(int(day_of_month), last.day))

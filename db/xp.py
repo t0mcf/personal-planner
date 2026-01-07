@@ -72,7 +72,7 @@ def has_xp_event_for_day(connection: sqlite3.Connection, event_type: str, day: s
         SELECT 1
         FROM xp_events
         WHERE event_type = ?
-          AND source_date = ?
+        AND source_date = ?
         LIMIT 1
         """,
         (event_type, day),
@@ -93,15 +93,15 @@ def has_weekly_reward(connection: sqlite3.Connection, habit_id: int, week_start:
         SELECT 1
         FROM xp_events
         WHERE event_type = 'weekly_habit_target_reached'
-          AND source_id = ?
-          AND source_date = ?
+        AND source_id = ?
+        AND source_date = ?
         LIMIT 1
         """,
         (habit_id, week_start),
     )
     return cursor.fetchone() is not None
 
-# current rule: to go from level n to n+1 you need round(100 * 1.2^(n-1)), maybe change later 
+#first idea: to level up from level n one needs round(100 * 1.2^(n-1)) xp
 def xp_needed_for_level(level: int) -> int:
     if level <= 1:
         return 0
@@ -175,31 +175,16 @@ def count_xp_events(connection: sqlite3.Connection) -> int:
     return int(row["c"] or 0)
 
 
-#achievement helper functions
-def has_xp_event_in_hours(connection: sqlite3.Connection, start_hour: int, end_hour: int) -> bool:
-    start_hour = int(start_hour)
-    end_hour = int(end_hour)
-
-    # If you ever want UTC instead, remove 'localtime' modifiers.
-    cur = connection.execute(
+#addded to fix bug where unticking todos also counted for the achievements
+def count_positive_xp_events_by_type(connection, event_type: str) -> int:
+    cursor = connection.execute(
         """
-        SELECT 1
+        SELECT COUNT(*)
         FROM xp_events
-        WHERE CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) BETWEEN ? AND ?
-        LIMIT 1
+        WHERE event_type = ?
+        AND xp_amount > 0
         """,
-        (start_hour, end_hour),
+        (event_type,),
     )
-    return cur.fetchone() is not None
-
-
-def has_xp_event_on_weekend(connection: sqlite3.Connection) -> bool:
-    cur = connection.execute(
-        """
-        SELECT 1
-        FROM xp_events
-        WHERE strftime('%w', datetime(created_at, 'localtime')) IN ('0', '6')
-        LIMIT 1
-        """
-    )
-    return cur.fetchone() is not None
+    row = cursor.fetchone()
+    return int(row[0] or 0)

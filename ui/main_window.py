@@ -8,7 +8,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle('personal planner')
+        self.setWindowTitle('Dailify')
         self.resize(1200, 800)
 
         self.tabs = QTabWidget()
@@ -19,10 +19,10 @@ class MainWindow(QMainWindow):
         self.todos_container = TodosContainer()
         self.xp_view = XPView()
 
-        self.tabs.addTab(self.home_view, 'home')
-        self.tabs.addTab(self.finance_tab, 'finance')
-        self.tabs.addTab(self.todos_container, 'todos')
-        self.tabs.addTab(self.xp_view, 'xp')
+        self.tabs.addTab(self.home_view, 'Home')
+        self.tabs.addTab(self.finance_tab, 'Finance')
+        self.tabs.addTab(self.todos_container, 'Activity')
+        self.tabs.addTab(self.xp_view, 'Progression')
 
         self.wire_home()
         self.home_view.refresh()
