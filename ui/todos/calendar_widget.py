@@ -12,10 +12,10 @@ from PySide6.QtWidgets import (
     QSizePolicy
 )
 
-from db.core import connect_db
+from helpers.db import db_session
 from db.todos import get_todo_stats_for_month
 from db.habits import get_daily_habit_stats_for_month
-from db.journal import get_journal_status_for_month
+from db.journal import get_journal_mood_for_month
 
 
 class CalendarWidget(QWidget):
@@ -96,17 +96,15 @@ class CalendarWidget(QWidget):
 
     def render_month(self):
         self.month_label.setText(f'{self.year:04d}-{self.month:02d}')
-    
-        #get data for info per day tile 
-        connection = connect_db()
-        todo_stats = get_todo_stats_for_month(connection, self.year, self.month)
-        journal_status = get_journal_status_for_month(connection, self.year, self.month)
-        total_daily, daily_done_by_day = get_daily_habit_stats_for_month(connection, self.year, self.month)
-        connection.close()
-        
+
+        #get data for info per day tile
+        with db_session() as connection:
+            todo_stats = get_todo_stats_for_month(connection, self.year, self.month)
+            journal_moods = get_journal_mood_for_month(connection, self.year, self.month)
+            total_daily, daily_done_by_day = get_daily_habit_stats_for_month(connection, self.year, self.month)
+
         cal = calendar.Calendar(firstweekday=calendar.MONDAY)
         month_days = list(cal.itermonthdates(self.year, self.month))
-        
 
         if len(month_days) < 42:
             last = month_days[-1]
@@ -125,39 +123,35 @@ class CalendarWidget(QWidget):
             selected = (day_iso == self.selected_day)
 
             tile.set_day(day_iso, day_date.day, in_current_month, selected)
-            
+
             #displaying stats per day
             todo_done, todo_total = todo_stats.get(day_iso, (0, 0))
             daily_done = daily_done_by_day.get(day_iso, 0)
 
-            journal_has = journal_status.get(day_iso, False)
-            journal_text = '✓' if journal_has else '-'
+            mood_val = journal_moods.get(day_iso)  # 1..5
+            mood_emoji = '😶'
+            if mood_val == 1:
+                mood_emoji = '😞'
+            elif mood_val == 2:
+                mood_emoji = '😐'
+            elif mood_val == 3:
+                mood_emoji = '🙂'
+            elif mood_val == 4:
+                mood_emoji = '😄'
+            elif mood_val == 5:
+                mood_emoji = '🤩'
 
             info_lines = [
                 f'📝 {todo_done}/{todo_total}' if todo_total else '📝 -',
                 f'🔁  {daily_done}/{total_daily}' if total_daily else '🔁  -',
-                f'📓 {journal_text}',
             ]
+
+            if mood_emoji:
+                info_lines.append(mood_emoji)
 
             tile.set_info_lines(info_lines)
 
-
     def select_day(self, day_iso: str):
-        self.selected_day = day_iso
-        self.render_month()
-        self.day_selected.emit(day_iso)
-
-
-    #deprecated
-    def click_day(self):
-        button = self.sender()
-        if not button:
-            return
-
-        day_iso = button.property('day')
-        if not day_iso:
-            return
-
         self.selected_day = day_iso
         self.render_month()
         self.day_selected.emit(day_iso)
@@ -179,7 +173,6 @@ class CalendarWidget(QWidget):
             self.month += 1
 
         self.render_month()
-
 
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSizePolicy
@@ -253,7 +246,7 @@ class DayTile(QWidget):
         day_color = '#222' if self.in_current_month else '#aaa'
 
         info_html = ''
-        if self.info_lines:
+        if self.info_lines and self.in_current_month:
             items = ''.join([f'<div style="margin-top: 4px; color: #666; font-size: 12px;">{line}</div>' for line in self.info_lines])
             info_html = f'<div style="margin-top: 10px;">{items}</div>'
 

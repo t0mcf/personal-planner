@@ -8,5 +8,6 @@ DEFAULT_CATEGORIES = [
     "Shopping",
     "Health",
     "Income",
+    "Rent"
 ]
 

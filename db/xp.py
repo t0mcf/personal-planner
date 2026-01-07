@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date as dt_date, datetime, timedelta
+from datetime import date as dt_date, timedelta
 
 #source id is the id of whatever triggered this (todo id, habit id or similar)
 #soure date is the date of the event that triggered this (for example the date of this todo), maybe unnecessary but ill keep this for now
@@ -101,10 +101,7 @@ def has_weekly_reward(connection: sqlite3.Connection, habit_id: int, week_start:
     )
     return cursor.fetchone() is not None
 
-
-# level curve (progressive)
-# level 1 starts at 0 xp
-# to go from level n -> n+1 you need round(100 * 1.2^(n-1))
+# current rule: to go from level n to n+1 you need round(100 * 1.2^(n-1)), maybe change later 
 def xp_needed_for_level(level: int) -> int:
     if level <= 1:
         return 0
@@ -115,7 +112,6 @@ def xp_needed_for_level(level: int) -> int:
 
 
 def xp_needed_for_next_level(level: int) -> int:
-    # xp needed to go from current level -> next level
     if level < 1:
         level = 1
     needed = 100
@@ -125,7 +121,6 @@ def xp_needed_for_next_level(level: int) -> int:
 
 
 def level_for_total_xp(total_xp: int) -> tuple[int, int, int]:
-    # returns (level, xp_into_level, xp_to_next)
     if total_xp < 0:
         total_xp = 0
 
@@ -163,3 +158,48 @@ def next_badge_milestone(level: int) -> int | None:
     if level < 100:
         return 100
     return None
+
+
+def count_xp_events_by_type(connection: sqlite3.Connection, event_type: str) -> int:
+    cursor = connection.execute(
+        "SELECT COUNT(*) AS c FROM xp_events WHERE event_type = ?",
+        (event_type,),
+    )
+    row = cursor.fetchone()
+    return int(row["c"] or 0)
+
+
+def count_xp_events(connection: sqlite3.Connection) -> int:
+    cursor = connection.execute("SELECT COUNT(*) AS c FROM xp_events")
+    row = cursor.fetchone()
+    return int(row["c"] or 0)
+
+
+#achievement helper functions
+def has_xp_event_in_hours(connection: sqlite3.Connection, start_hour: int, end_hour: int) -> bool:
+    start_hour = int(start_hour)
+    end_hour = int(end_hour)
+
+    # If you ever want UTC instead, remove 'localtime' modifiers.
+    cur = connection.execute(
+        """
+        SELECT 1
+        FROM xp_events
+        WHERE CAST(strftime('%H', datetime(created_at, 'localtime')) AS INTEGER) BETWEEN ? AND ?
+        LIMIT 1
+        """,
+        (start_hour, end_hour),
+    )
+    return cur.fetchone() is not None
+
+
+def has_xp_event_on_weekend(connection: sqlite3.Connection) -> bool:
+    cur = connection.execute(
+        """
+        SELECT 1
+        FROM xp_events
+        WHERE strftime('%w', datetime(created_at, 'localtime')) IN ('0', '6')
+        LIMIT 1
+        """
+    )
+    return cur.fetchone() is not None

@@ -6,7 +6,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate, Signal
 
 from db.core import connect_db
-from db.todos import update_todo    
+from db.todos import update_todo  
+
+from helpers.db import db_session  
 
 class EditTodoDialog(QDialog):
     saved = Signal()
@@ -71,9 +73,8 @@ class EditTodoDialog(QDialog):
         if not self.backlog_box.isChecked():
             date_value = self.date_input.date().toString('yyyy-MM-dd')
 
-        connection = connect_db()
-        update_todo(connection, int(self.todo['id']), title, date_value)
-        connection.close()
+        with db_session() as connection:
+            update_todo(connection, int(self.todo['id']), title, date_value)
 
         self.saved.emit()
         self.accept()

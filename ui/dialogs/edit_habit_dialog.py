@@ -8,6 +8,7 @@ from datetime import date as dt_date
 
 from db.core import connect_db
 from db.habits import update_habit
+from helpers.db import db_session
 
 #for habits
 EMOJIS = [
@@ -91,17 +92,16 @@ class EditHabitDialog(QDialog):
         )
         start_date = self.start_date_input.date().toString('yyyy-MM-dd')
 
-        connection = connect_db()
-        update_habit(
-            connection,
-            habit_id=int(self.habit['id']),
-            title=title,
-            emoji=emoji,
-            frequency=frequency,
-            weekly_target=weekly_target,
-            start_date=start_date,
-        )
-        connection.close()
+        with db_session() as connection:
+            update_habit(
+                connection,
+                habit_id=int(self.habit['id']),
+                title=title,
+                emoji=emoji,
+                frequency=frequency,
+                weekly_target=weekly_target,
+                start_date=start_date,
+            )
 
         self.saved.emit()
         self.accept()

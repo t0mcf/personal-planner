@@ -1,5 +1,5 @@
 from datetime import date as dt_date, timedelta
-
+from helpers.dates import month_range
 
 #frequency is supposed to be 'daily' or 'weekly'
 #weekly_target only for weekly (e.g. 3 workouts)
@@ -297,11 +297,7 @@ def get_weekly_streak(connection, habit_id: int, as_of_day: str) -> int:
 
 
 def get_daily_habit_stats_for_month(connection, year: int, month: int) -> tuple[int, dict[str, int]]:
-    start_date = dt_date(year, month, 1)
-    if month == 12:
-        end_date = dt_date(year + 1, 1, 1)
-    else:
-        end_date = dt_date(year, month + 1, 1)
+    start_date, end_date = month_range(year, month)
 
     cursor = connection.cursor()
 
@@ -439,3 +435,17 @@ def update_habit(
         ),
     )
     connection.commit()
+    
+    
+def get_habit_title(connection: sqlite3.Connection, habit_id: int) -> str:
+    cursor = connection.execute(
+        """
+        SELECT title
+        FROM habits
+        WHERE id = ?
+        """,
+        (habit_id,),
+    )
+    row = cursor.fetchone()
+    return row['title'] if row else ''
+

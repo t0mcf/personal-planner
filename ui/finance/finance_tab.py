@@ -27,7 +27,7 @@ class FinanceTab(QWidget):
         self._btn_transactions.setCheckable(True)
 
         group = QButtonGroup(self)
-        group.setExclusive(True) #have only one active at a time 
+        group.setExclusive(True) #to have only one active at a time 
         group.addButton(self._btn_dashboard, 0)
         group.addButton(self._btn_transactions, 1)
 

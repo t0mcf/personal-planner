@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import date as dt_date
+from helpers.dates import month_range
 
 
 def init_todo_tables(connection: sqlite3.Connection) -> None:
@@ -96,12 +97,8 @@ def delete_todo(
 
 #intended for usage with the calendar view to show stats 
 def get_todo_stats_for_month(connection, year: int, month: int) -> dict[str, tuple[int, int]]:
-    start_date = dt_date(year, month, 1)
 
-    if month == 12:
-        end_date = dt_date(year + 1, 1, 1)
-    else:
-        end_date = dt_date(year, month + 1, 1)
+    start_date, end_date = month_range(year, month)
 
     start_iso = start_date.isoformat()
     end_iso = end_date.isoformat()
@@ -146,4 +143,17 @@ def update_todo(
         (title, date, todo_id),
     )
     connection.commit()
+
+
+def get_todo_title(connection: sqlite3.Connection, todo_id: int) -> str:
+    cursor = connection.execute(
+        """
+        SELECT title
+        FROM todos
+        WHERE id = ?
+        """,
+        (todo_id,),
+    )
+    row = cursor.fetchone()
+    return row['title'] if row else ''
 

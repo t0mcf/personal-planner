@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboB
 
 from db.core import connect_db
 from db.settings import get_setting, set_setting #for weather 
+from helpers.db import db_session
 
 #just some japan presets for now, add more (maybe capitals of some big countries all over the world)
 CITY_PRESETS = {
@@ -61,13 +62,10 @@ class WeatherWidget(QWidget):
         layout.addStretch(1)
 
     def load_location_from_settings(self) -> None:
-        connection = connect_db()
-
-        saved_city = get_setting(connection, 'weather_city') or 'Kyoto'
-        saved_lat = get_setting(connection, 'weather_lat')
-        saved_lon = get_setting(connection, 'weather_lon')
-
-        connection.close()
+        with db_session() as connection:
+            saved_city = get_setting(connection, 'weather_city') or 'Kyoto'
+            saved_lat = get_setting(connection, 'weather_lat')
+            saved_lon = get_setting(connection, 'weather_lon')
 
         if saved_city in CITY_PRESETS:
             self.city_input.blockSignals(True)
@@ -81,11 +79,10 @@ class WeatherWidget(QWidget):
                 self.save_location_to_settings(saved_city, lat, lon)
 
     def save_location_to_settings(self, city: str, lat: float, lon: float) -> None:
-        connection = connect_db()
-        set_setting(connection, 'weather_city', city)
-        set_setting(connection, 'weather_lat', str(lat))
-        set_setting(connection, 'weather_lon', str(lon))
-        connection.close()
+        with db_session() as connection: 
+            set_setting(connection, 'weather_city', city)
+            set_setting(connection, 'weather_lat', str(lat))
+            set_setting(connection, 'weather_lon', str(lon))
 
     def on_city_changed(self, city: str) -> None:
         if city == 'Custom…':
@@ -129,10 +126,10 @@ class WeatherWidget(QWidget):
         if not force and not self.should_fetch(): 
             return
 
-        connection = connect_db()
-        lat = get_setting(connection, 'weather_lat')
-        lon = get_setting(connection, 'weather_lon')
-        connection.close()
+        with db_session() as connection:
+            lat = get_setting(connection, 'weather_lat')
+            lon = get_setting(connection, 'weather_lon')
+
 
         if not lat or not lon:
             # defauly kyoto

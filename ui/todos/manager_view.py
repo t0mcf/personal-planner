@@ -1,6 +1,6 @@
 from datetime import date as dt_date
 
-from PySide6.QtCore import Qt, Signal, QDate
+from PySide6.QtCore import Qt, Signal, QDate, QTimer
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -18,9 +18,8 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
 )
-from PySide6.QtGui import QShowEvent
 
-from db.core import connect_db
+from helpers.db import db_session
 from db.habits import (
     insert_habit,
     list_all_habits,
@@ -39,7 +38,8 @@ from db.todos import (
 from ui.dialogs.edit_habit_dialog import EditHabitDialog
 from ui.dialogs.edit_todo_dialog import EditTodoDialog
 
-#for habits
+
+# for habits
 EMOJIS = [
     '',
     '📚', '🏃', '🧘', '💪', '🥗', '💧',
@@ -49,7 +49,6 @@ EMOJIS = [
 
 
 class ManagerView(QWidget):
-    back_to_day = Signal()
 
     def __init__(self):
         super().__init__()
@@ -64,10 +63,6 @@ class ManagerView(QWidget):
 
         top_bar = QHBoxLayout()
         main_layout.addLayout(top_bar)
-
-        back_button = QPushButton('← Back')
-        back_button.clicked.connect(self.back_to_day.emit)
-        top_bar.addWidget(back_button)
 
         title = QLabel('Manager')
         title.setStyleSheet('font-size: 18px; font-weight: 700;')
@@ -88,9 +83,16 @@ class ManagerView(QWidget):
         self.tabs.addTab(self.habits_tab, 'Habits')
         self.tabs.addTab(self.todos_tab, 'Todos')
 
+        # performance: only refresh the visible tab when user switches
+        self.tabs.currentChanged.connect(lambda _: self.refresh())
+
     def refresh(self):
-        self.habits_tab.refresh()
-        self.todos_tab.refresh()
+        # performance: only refresh active tab (not both every time)
+        idx = self.tabs.currentIndex()
+        if idx == 0:
+            self.habits_tab.refresh()
+        else:
+            self.todos_tab.refresh()
 
 
 class HabitsManagerWidget(QWidget):
@@ -154,6 +156,8 @@ class HabitsManagerWidget(QWidget):
         layout.addWidget(list_card, 1)
 
         self.habits_list = QListWidget()
+        # performance: smoother scrolling for uniform-height rows
+        self.habits_list.setUniformItemSizes(True)
         list_layout.addWidget(self.habits_list, 1)
 
     def make_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
@@ -190,17 +194,16 @@ class HabitsManagerWidget(QWidget):
         start_date = self.start_date_input.date().toString('yyyy-MM-dd')
         active = bool(self.active_input.isChecked())
 
-        connection = connect_db()
-        insert_habit(
-            connection,
-            title=title,
-            emoji=emoji,
-            frequency=frequency,
-            weekly_target=weekly_target,
-            active=active,
-            start_date=start_date,
-        )
-        connection.close()
+        with db_session() as connection:
+            insert_habit(
+                connection,
+                title=title,
+                emoji=emoji,
+                frequency=frequency,
+                weekly_target=weekly_target,
+                active=active,
+                start_date=start_date,
+            )
 
         self.title_input.setText('')
         self.emoji_input.setCurrentText('')
@@ -209,20 +212,33 @@ class HabitsManagerWidget(QWidget):
         self.changed.emit()
 
     def refresh(self):
+        self.habits_list.setUpdatesEnabled(False)
         self.habits_list.clear()
 
-        connection = connect_db()
-        habits = list_all_habits(connection)
-        connection.close()
+        today = dt_date.today().isoformat()
+
+        # performance: one connection for habits + streaks
+        with db_session() as connection:
+            habits = list_all_habits(connection)
+
+            streaks: dict[int, int] = {}
+            for h in habits:
+                hid = int(h['id'])
+                if h['frequency'] == 'daily':
+                    streaks[hid] = get_daily_streak(connection, hid, today)
+                else:
+                    streaks[hid] = get_weekly_streak(connection, hid, today)
 
         for habit in habits:
             item = QListWidgetItem()
-            widget = self.make_habit_row(habit)
+            widget = self.make_habit_row(habit, streaks.get(int(habit['id']), 0))
             item.setSizeHint(widget.sizeHint())
             self.habits_list.addItem(item)
             self.habits_list.setItemWidget(item, widget)
 
-    def make_habit_row(self, habit: dict) -> QWidget:
+        self.habits_list.setUpdatesEnabled(True)
+
+    def make_habit_row(self, habit: dict, streak: int) -> QWidget:
         row = QWidget()
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -256,21 +272,11 @@ class HabitsManagerWidget(QWidget):
         delete_button.setProperty('habit_id', habit['id'])
         delete_button.clicked.connect(self.remove_habit)
         layout.addWidget(delete_button, 0)
-        
+
         edit = QPushButton('Edit')
         edit.setProperty('habit', habit)
         edit.clicked.connect(self.edit_habit)
         layout.addWidget(edit)
-        
-        today = dt_date.today().isoformat()
-
-        #display streaks (always from today date as that's the current streak)
-        connection = connect_db()
-        if habit['frequency'] == 'daily':
-            streak = get_daily_streak(connection, habit['id'], today)
-        else:
-            streak = get_weekly_streak(connection, habit['id'], today)
-        connection.close()
 
         streak_label = QLabel(f'🔥 {streak}' if streak > 0 else '')
         streak_label.setStyleSheet('color: #666; font-size: 12px;')
@@ -278,13 +284,12 @@ class HabitsManagerWidget(QWidget):
         layout.addWidget(streak_label)
 
         return row
-    
+
     def edit_habit(self):
         habit = self.sender().property('habit')
         dialog = EditHabitDialog(habit, self)
         dialog.saved.connect(self.refresh)
         dialog.exec()
-
 
     def toggle_active(self, checked: bool):
         box = self.sender()
@@ -295,9 +300,8 @@ class HabitsManagerWidget(QWidget):
         if habit_id is None:
             return
 
-        connection = connect_db()
-        set_habit_active(connection, int(habit_id), checked)
-        connection.close()
+        with db_session() as connection:
+            set_habit_active(connection, int(habit_id), checked)
 
         self.changed.emit()
 
@@ -319,9 +323,8 @@ class HabitsManagerWidget(QWidget):
         if answer != QMessageBox.Yes:
             return
 
-        connection = connect_db()
-        delete_habit(connection, int(habit_id))
-        connection.close()
+        with db_session() as connection:
+            delete_habit(connection, int(habit_id))
 
         self.refresh()
         self.changed.emit()
@@ -332,6 +335,10 @@ class TodosManagerWidget(QWidget):
 
     def __init__(self):
         super().__init__()
+
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.timeout.connect(self.refresh)
 
         self.build_ui()
 
@@ -367,14 +374,14 @@ class TodosManagerWidget(QWidget):
 
         list_card, list_layout = self.make_card('All todos')
         layout.addWidget(list_card, 1)
-        
+
         filter_row = QHBoxLayout()
-        
         list_layout.addLayout(filter_row)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText('Search title...')
-        self.search_input.textChanged.connect(self.refresh)
+        # performance: debounce refresh instead of refresh on every keystroke
+        self.search_input.textChanged.connect(lambda _: self.request_refresh())
         filter_row.addWidget(self.search_input, 2)
 
         self.mode_input = QComboBox()
@@ -386,15 +393,21 @@ class TodosManagerWidget(QWidget):
         self.filter_date_input.setCalendarPopup(True)
         self.filter_date_input.setDisplayFormat('yyyy-MM-dd')
         self.filter_date_input.setDate(QDate.currentDate())
-        self.filter_date_input.dateChanged.connect(self.refresh)
+        # performance: debounce date-based refresh too
+        self.filter_date_input.dateChanged.connect(lambda _: self.request_refresh())
         filter_row.addWidget(self.filter_date_input, 0)
 
         self.todos_list = QListWidget()
+        # performance: smoother scrolling for uniform-height rows
+        self.todos_list.setUniformItemSizes(True)
         list_layout.addWidget(self.todos_list, 1)
 
         self.on_backlog_toggled(self.backlog_box.isChecked())
         self.on_mode_changed(self.mode_input.currentText())
 
+    def request_refresh(self):
+        # small delay collapses rapid events into one refresh
+        self._refresh_timer.start(180)
 
     def make_card(self, title: str) -> tuple[QFrame, QVBoxLayout]:
         frame = QFrame()
@@ -424,20 +437,19 @@ class TodosManagerWidget(QWidget):
         if not self.backlog_box.isChecked():
             date_value = self.todo_date_input.date().toString('yyyy-MM-dd')
 
-        connection = connect_db()
-        insert_todo(connection, title, date_value)
-        connection.close()
+        with db_session() as connection:
+            insert_todo(connection, title, date_value)
 
         self.todo_title_input.setText('')
         self.refresh()
         self.changed.emit()
 
     def refresh(self):
+        self.todos_list.setUpdatesEnabled(False)
         self.todos_list.clear()
 
-        connection = connect_db()
-        todos = list_all_todos(connection)
-        connection.close()
+        with db_session() as connection:
+            todos = list_all_todos(connection)
 
         query = (self.search_input.text() or '').strip().lower()
         mode = self.mode_input.currentText()
@@ -458,9 +470,9 @@ class TodosManagerWidget(QWidget):
                 continue
 
             filtered.append(t)
-            
-        #sort so that completed are at bottom
-        filtered.sort(key= lambda t: t['completed'])
+
+        # sort so that completed are at bottom
+        filtered.sort(key=lambda t: t['completed'])
 
         for todo in filtered:
             item = QListWidgetItem()
@@ -469,13 +481,14 @@ class TodosManagerWidget(QWidget):
             self.todos_list.addItem(item)
             self.todos_list.setItemWidget(item, widget)
 
+        self.todos_list.setUpdatesEnabled(True)
 
     def make_todo_row(self, todo: dict) -> QWidget:
         row = QWidget()
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
-        
+
         checkbox = QCheckBox()
         checkbox.setChecked(bool(todo['completed']))
         checkbox.setProperty('todo_id', todo['id'])
@@ -503,42 +516,13 @@ class TodosManagerWidget(QWidget):
         delete_button.setProperty('todo_id', todo['id'])
         delete_button.clicked.connect(self.remove_todo)
         layout.addWidget(delete_button, 0)
-        
+
         edit_button = QPushButton('Edit')
         edit_button.setProperty('todo', todo)
         edit_button.clicked.connect(self.edit_todo)
         layout.addWidget(edit_button, 0)
 
         return row
-
-    def remove_todo(self):
-        button = self.sender()
-        if not button:
-            return
-
-        todo_id = button.property('todo_id')
-        if todo_id is None:
-            return
-
-        connection = connect_db()
-        delete_todo(connection, int(todo_id))
-        connection.close()
-
-        self.refresh()
-        self.changed.emit()
-        
-    def on_mode_changed(self, text: str):
-        self.filter_date_input.setEnabled(text == 'By date')
-        self.refresh()
-
-    def edit_todo(self):
-        todo = self.sender().property('todo')
-        if not todo:
-            return
-
-        dialog = EditTodoDialog(todo, self)
-        dialog.saved.connect(self.refresh)
-        dialog.exec()
 
     def toggle_todo(self, checked: bool):
         checkbox = self.sender()
@@ -549,12 +533,33 @@ class TodosManagerWidget(QWidget):
         if todo_id is None:
             return
 
-        connection = connect_db()
-        set_todo_completed(connection, int(todo_id), checked)
-        connection.close()
+        with db_session() as connection:
+            set_todo_completed(connection, int(todo_id), checked)
 
         self.refresh()
-        
-    def showEvent(self, event: QShowEvent) -> None:
-        super().showEvent(event)
+        self.changed.emit()
+
+    def edit_todo(self):
+        todo = self.sender().property('todo')
+        dialog = EditTodoDialog(todo, self)
+        dialog.saved.connect(self.refresh)
+        dialog.exec()
+
+    def remove_todo(self):
+        button = self.sender()
+        if not button:
+            return
+
+        todo_id = button.property('todo_id')
+        if todo_id is None:
+            return
+
+        with db_session() as connection:
+            delete_todo(connection, int(todo_id))
+
+        self.refresh()
+        self.changed.emit()
+
+    def on_mode_changed(self, text: str):
+        self.filter_date_input.setEnabled(text == 'By date')
         self.refresh()
